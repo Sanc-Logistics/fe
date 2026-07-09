@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HeaderWithCart } from "@/components/header/header-with-cart";
-import { useAuthHeader } from "@/hooks/use-auth-header";
+//import { useAuthHeader } from "@/hooks/use-auth-header";
 import { cn } from "@/lib/utils";
 
 export default function MembersLayout({
