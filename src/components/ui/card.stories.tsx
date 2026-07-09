@@ -30,10 +30,12 @@ export const Elevated: Story = {
           <Chip variant="blue">제작중</Chip>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="primary">
+          <Button size="sm" variant="default">
             상세보기
           </Button>
-          <Button size="sm">목록</Button>
+          <Button size="sm" variant="outline">
+            목록
+          </Button>
         </div>
       </div>
     ),
