@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { Check, Menu, Plus, X } from "lucide-react";
+import { useRef, useState, useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Chip, type ChipVariant } from "@/components/ui/chip";
-import { Dropdown } from "@/components/ui/dropdown";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, type TableColumn } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,12 @@ const MEMBER_NAV = ["제품주문서", "인사장", "내 주문 현황", "엑셀
 const GREETING_TABS = ["제품주문 연계", "인사장만 의뢰"] as const;
 const GREETING_NUMBERS = ["1", "2", "3", "4", "자체"] as const;
 const GREETING_SIZES = ["8칸", "6칸", "4칸"] as const;
+const ORDER_TYPES = [
+  { value: "delivery", label: "택배" },
+  { value: "pickup", label: "배달" },
+] as const;
+
+type OrderType = (typeof ORDER_TYPES)[number]["value"];
 
 type MemberNav = (typeof MEMBER_NAV)[number];
 type GreetingTab = (typeof GREETING_TABS)[number];
@@ -98,6 +105,21 @@ const STATUS_VARIANT: Record<string, ChipVariant> = {
   출고완료: "green",
 };
 
+function useMinWidth(minWidth: number) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(min-width: ${minWidth}px)`);
+    const update = () => setMatches(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, [minWidth]);
+
+  return matches;
+}
+
 function StatusChip({ status }: { status: string }) {
   return <Chip variant={STATUS_VARIANT[status] ?? "blue"}>{status}</Chip>;
 }
@@ -128,6 +150,50 @@ function SegTabs<T extends string>({
           {item}
         </button>
       ))}
+    </div>
+  );
+}
+
+function OrderTypeToggle({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: OrderType;
+  onChange: (value: OrderType) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn(compact ? "shrink-0" : "w-full")}>
+      {!compact ? (
+        <label className="mb-1.5 block text-xs text-[#475569]">주문구분</label>
+      ) : null}
+      <div className="flex gap-2">
+        {ORDER_TYPES.map((option) => {
+          const isActive = value === option.value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-white transition-colors",
+                compact ? "min-w-[92px]" : "flex-1",
+                isActive ? "bg-[#16995f]" : "bg-[#1f2937] hover:opacity-90",
+              )}
+            >
+              {isActive ? (
+                <span className="flex size-4 shrink-0 items-center justify-center rounded-[3px] bg-[#d8dce8] text-[#16995f]">
+                  <Check className="size-3" strokeWidth={3} />
+                </span>
+              ) : null}
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -187,6 +253,34 @@ function Panel({
   );
 }
 
+function MemberNavList({
+  activeMenu,
+  onMenuChange,
+}: {
+  activeMenu: MemberNav;
+  onMenuChange: (menu: MemberNav) => void;
+}) {
+  return (
+    <nav className="space-y-1.5">
+      {MEMBER_NAV.map((item) => (
+        <button
+          key={item}
+          type="button"
+          onClick={() => onMenuChange(item)}
+          className={cn(
+            "block w-full rounded-[7px] px-2.5 py-2.5 text-left text-[13px] transition-colors",
+            activeMenu === item
+              ? "bg-[#334155] font-bold text-white"
+              : "text-[#cbd5e1] hover:bg-[#2b3648]",
+          )}
+        >
+          {item}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 function MemberSidebar({
   activeMenu,
   onMenuChange,
@@ -195,26 +289,59 @@ function MemberSidebar({
   onMenuChange: (menu: MemberNav) => void;
 }) {
   return (
-    <aside className="bg-[#1f2937] px-3.5 py-4 text-[#e5edf7]">
+    <aside className="hidden bg-[#1f2937] px-3.5 py-4 text-[#e5edf7] min-[1040px]:block">
       <strong className="mb-4 block text-base">개인회원</strong>
-      <nav className="space-y-1.5">
-        {MEMBER_NAV.map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => onMenuChange(item)}
-            className={cn(
-              "block w-full rounded-[7px] px-2.5 py-2.5 text-left text-[13px] transition-colors",
-              activeMenu === item
-                ? "bg-[#334155] font-bold text-white"
-                : "text-[#cbd5e1] hover:bg-[#2b3648]",
-            )}
-          >
-            {item}
-          </button>
-        ))}
-      </nav>
+      <MemberNavList activeMenu={activeMenu} onMenuChange={onMenuChange} />
     </aside>
+  );
+}
+
+function MobileMemberHeader({
+  activeMenu,
+  isOpen,
+  onToggle,
+  onMenuChange,
+}: {
+  activeMenu: MemberNav;
+  isOpen: boolean;
+  onToggle: () => void;
+  onMenuChange: (menu: MemberNav) => void;
+}) {
+  return (
+    <div className="relative mb-3.5 min-[1040px]:hidden">
+      <div className="flex items-center justify-between rounded-lg bg-[#1f2937] px-4 py-3 text-[#e5edf7]">
+        <strong className="text-base">개인 회원</strong>
+        <button
+          type="button"
+          aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
+          aria-expanded={isOpen}
+          onClick={onToggle}
+          className="rounded-[7px] p-2 text-[#e5edf7] transition-colors hover:bg-[#334155]"
+        >
+          {isOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+        </button>
+      </div>
+
+      {isOpen ? (
+        <>
+          <button
+            type="button"
+            aria-label="메뉴 닫기"
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={onToggle}
+          />
+          <div className="absolute top-full right-0 left-0 z-50 mt-2 rounded-lg border border-[#334155] bg-[#1f2937] p-3.5 shadow-lg">
+            <MemberNavList
+              activeMenu={activeMenu}
+              onMenuChange={(menu) => {
+                onMenuChange(menu);
+                onToggle();
+              }}
+            />
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -286,46 +413,228 @@ function GreetingForm({
   );
 }
 
-function ProductOrderPanel({
-  productColumns,
-  productItems,
-  onGreetingClick,
+function ProductAddDialog({
+  open,
+  onClose,
+  onAdd,
+  onSaveAndPreview,
 }: {
-  productColumns: TableColumn<ProductLineItem>[];
-  productItems: ProductLineItem[];
-  onGreetingClick: () => void;
+  open: boolean;
+  onClose: () => void;
+  onAdd: (item: { product: string; qty: number; note: string }) => void;
+  onSaveAndPreview: (item: { product: string; qty: number; note: string }) => void;
 }) {
-  return (
-    <Panel>
-      <h4 className="mb-2.5 text-base font-semibold text-ink">제품 주문</h4>
+  const [product, setProduct] = useState("");
+  const [qty, setQty] = useState("");
+  const [note, setNote] = useState("");
 
-      <div className="grid grid-cols-1 gap-2.5 min-[900px]:grid-cols-2">
-        <Dropdown
-          label="주문구분"
-          defaultValue="delivery"
-          options={[
-            { value: "delivery", label: "택배" },
-            { value: "pickup", label: "배달" },
-          ]}
+  const buildItem = () => ({
+    product: product.trim(),
+    qty: Number(qty) || 0,
+    note: note.trim(),
+  });
+
+  const canSubmit = product.trim().length > 0 && Number(qty) > 0;
+
+  const handleAdd = () => {
+    if (!canSubmit) {
+      return;
+    }
+
+    onAdd(buildItem());
+    setProduct("");
+    setQty("");
+    setNote("");
+  };
+
+  const handleSaveAndPreview = () => {
+    if (!canSubmit) {
+      return;
+    }
+
+    onSaveAndPreview(buildItem());
+    setProduct("");
+    setQty("");
+    setNote("");
+  };
+
+  return (
+    <Dialog open={open} title="상품 입력" onClose={onClose}>
+      <div className="space-y-4">
+        <Input
+          label="주문 제품명"
+          value={product}
+          onChange={(event) => setProduct(event.target.value)}
+          placeholder="명진 1호"
         />
-        <div className="space-y-2.5">
-          <Input label="주문일자" type="date" defaultValue="2026-01-10" />
-          <Input
-            label="납기일자(배달완료일)"
-            type="date"
-            defaultValue="2026-01-16"
+        <Input
+          label="주문 수량"
+          type="number"
+          min={1}
+          value={qty}
+          onChange={(event) => setQty(event.target.value)}
+          placeholder="300"
+        />
+        <div>
+          <label htmlFor="product-note" className="mb-1.5 block text-xs text-[#475569]">
+            요청 사항
+          </label>
+          <textarea
+            id="product-note"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="개별택배 / 명함 동봉"
+            className="min-h-[88px] w-full resize-none rounded-[7px] border border-[#cbd5e1] bg-[#f6f8fb] px-2.5 py-2 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           />
         </div>
+
+        <Button
+          type="button"
+          className="h-11 w-full rounded-full border-brand bg-brand text-white hover:bg-[#1856bf]"
+          disabled={!canSubmit}
+          onClick={handleAdd}
+        >
+          <Plus className="size-4" />
+          상품 추가
+        </Button>
+        <Button
+          type="button"
+          className="h-11 w-full rounded-full border-[#16995f] bg-[#16995f] text-white hover:bg-[#128a52]"
+          disabled={!canSubmit}
+          onClick={handleSaveAndPreview}
+        >
+          저장 후 창 닫기
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
+
+function ProductOrderPanel({
+  onGreetingClick,
+}: {
+  onGreetingClick: () => void;
+}) {
+  const [orderType, setOrderType] = useState<OrderType>("delivery");
+  const [productItems, setProductItems] = useState(INITIAL_PRODUCT_ITEMS);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const isDesktop = useMinWidth(1040);
+  const deliveryDateLabel =
+    orderType === "delivery" ? "납기일(택배발송일)" : "납기일(배달완료일)";
+
+  const addProductItem = (item: { product: string; qty: number; note: string }) => {
+    setProductItems((current) => [
+      ...current,
+      {
+        ...item,
+        greeting: "제작대기",
+      },
+    ]);
+  };
+
+  const updateProductQty = (rowIndex: number, qty: number) => {
+    setProductItems((current) =>
+      current.map((item, index) =>
+        index === rowIndex ? { ...item, qty: Math.max(1, qty) } : item,
+      ),
+    );
+  };
+
+  const productColumns: TableColumn<ProductLineItem>[] = [
+    { key: "product", header: "상품명" },
+    {
+      key: "qty",
+      header: "수량",
+      className: "w-[72px] px-1 py-0",
+      render: (row, rowIndex) => (
+        <input
+          type="number"
+          min={1}
+          aria-label={`${row.product} 수량`}
+          value={row.qty}
+          onChange={(event) => {
+            const nextQty = Number(event.target.value);
+            if (!Number.isNaN(nextQty)) {
+              updateProductQty(rowIndex, nextQty);
+            }
+          }}
+          className="mx-auto block h-6 w-12 rounded border border-[#cbd5e1] bg-white px-1 text-center text-xs leading-none text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+      ),
+    },
+    { key: "note", header: "요청사항" },
+    {
+      key: "greeting",
+      header: "인사장",
+      render: (row) =>
+        row.greeting === "제작대기" ? (
+          <StatusChip status="제작대기" />
+        ) : (
+          row.greeting
+        ),
+    },
+  ];
+
+  return (
+    <Panel>
+      <div className="mb-4 flex flex-col gap-3 min-[640px]:flex-row min-[640px]:items-start min-[640px]:justify-between">
+        <h4 className="text-base font-semibold text-ink">신규 주문 작성</h4>
+        <OrderTypeToggle value={orderType} onChange={setOrderType} compact />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
         <Input label="주문자 성명" defaultValue="이순희" />
-        <Input label="연락처" defaultValue="010-1234-5678" />
+        <Input label="주문자 연락처" defaultValue="010-1234-5678" />
+        <Input label="주문일자" type="date" defaultValue="2026-01-10" />
+        <Input
+          label={deliveryDateLabel}
+          type="date"
+          defaultValue="2026-01-16"
+        />
+      </div>
+
+      <div className="mt-2.5 grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+        <Input label="거래처 담당자" defaultValue="홍길동" />
+        <Input label="담당자 연락처" defaultValue="010-1234-5678" />
+        <Input label="보내는 사람" defaultValue="이순희" />
+        <Input label="보내는 연락처" defaultValue="010-1234-5678" />
+      </div>
+
+      <div className="mt-2.5">
+        <label htmlFor="sender-address" className="mb-1.5 block text-xs text-[#475569]">
+          보내는 주소
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="sender-address"
+            type="text"
+            defaultValue="경기도 남양주시 기장신앙촌로 123"
+            placeholder="주소를 입력하세요"
+            className="min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+          <Button
+            type="button"
+            className="shrink-0 border-[#1f2937] bg-[#1f2937] px-4 text-white hover:bg-[#111827]"
+          >
+            주소 검색
+          </Button>
+        </div>
       </div>
 
       <div className="mt-3">
-        <Table caption="제품 주문 상품 목록" columns={productColumns} data={productItems} />
+        <Table
+          caption="제품 주문 상품 목록"
+          columns={productColumns}
+          data={productItems}
+          scrollable={!isDesktop}
+          visibleRows={isDesktop ? undefined : 4}
+        />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="outline">상품 추가</Button>
+        <Button variant="outline" onClick={() => setIsProductDialogOpen(true)}>
+          상품 추가
+        </Button>
         <Button
           className="border-brand bg-brand text-white hover:bg-[#1856bf]"
           onClick={onGreetingClick}
@@ -336,6 +645,16 @@ function ProductOrderPanel({
           접수하기
         </Button>
       </div>
+
+      <ProductAddDialog
+        open={isProductDialogOpen}
+        onClose={() => setIsProductDialogOpen(false)}
+        onAdd={addProductItem}
+        onSaveAndPreview={(item) => {
+          addProductItem(item);
+          setIsProductDialogOpen(false);
+        }}
+      />
     </Panel>
   );
 }
@@ -397,27 +716,16 @@ function ExcelPanel({ onUploadClick }: { onUploadClick: () => void }) {
 export function OrderListInput() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMenu, setActiveMenu] = useState<MemberNav>("제품주문서");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [greetingTab, setGreetingTab] = useState<GreetingTab>("제품주문 연계");
-  const [productItems] = useState(INITIAL_PRODUCT_ITEMS);
   const [orders] = useState(INITIAL_ORDERS);
 
-  const pageMeta = PAGE_META[activeMenu];
+  const handleMenuChange = (menu: MemberNav) => {
+    setActiveMenu(menu);
+    setIsMobileMenuOpen(false);
+  };
 
-  const productColumns: TableColumn<ProductLineItem>[] = [
-    { key: "product", header: "상품명" },
-    { key: "qty", header: "수량" },
-    { key: "note", header: "요청사항" },
-    {
-      key: "greeting",
-      header: "인사장",
-      render: (row) =>
-        row.greeting === "제작대기" ? (
-          <StatusChip status="제작대기" />
-        ) : (
-          row.greeting
-        ),
-    },
-  ];
+  const pageMeta = PAGE_META[activeMenu];
 
   const orderColumns: TableColumn<OrderRow>[] = [
     { key: "id", header: "접수번호" },
@@ -469,11 +777,9 @@ export function OrderListInput() {
       case "제품주문서":
         return (
           <ProductOrderPanel
-            productColumns={productColumns}
-            productItems={productItems}
             onGreetingClick={() => {
               setGreetingTab("제품주문 연계");
-              setActiveMenu("인사장");
+              handleMenuChange("인사장");
             }}
           />
         );
@@ -497,9 +803,16 @@ export function OrderListInput() {
 
   return (
     <div className="grid min-h-[730px] grid-cols-1 overflow-hidden rounded-[10px] border border-[#cbd3df] bg-white min-[1040px]:grid-cols-[200px_1fr]">
-      <MemberSidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
+      <MemberSidebar activeMenu={activeMenu} onMenuChange={handleMenuChange} />
 
       <section className="bg-[#f7f9fc] p-4">
+        <MobileMemberHeader
+          activeMenu={activeMenu}
+          isOpen={isMobileMenuOpen}
+          onToggle={() => setIsMobileMenuOpen((open) => !open)}
+          onMenuChange={handleMenuChange}
+        />
+
         <div className="mb-3.5 flex flex-col gap-3 min-[1100px]:flex-row min-[1100px]:items-start min-[1100px]:justify-between">
           <div>
             <h3 className="text-[22px] font-semibold text-ink">{pageMeta.title}</h3>
@@ -513,7 +826,7 @@ export function OrderListInput() {
           ) : null}
         </div>
 
-        <div className="max-w-5xl">{renderContent()}</div>
+        <div className="w-full">{renderContent()}</div>
 
         <input
           ref={fileInputRef}

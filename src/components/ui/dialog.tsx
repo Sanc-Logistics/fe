@@ -30,7 +30,7 @@ export function Dialog({ open, title, children, onClose }: DialogProps) {
             <button
               type="button"
               aria-label="Close dialog"
-              className="rounded border border-line px-2 py-1 text-sm text-muted hover:bg-soft"
+              className="shrink-0 rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-1 text-sm text-[#64748b] hover:bg-[#f6f8fb] hover:text-[#475569]"
               onClick={onClose}
             >
               닫기
