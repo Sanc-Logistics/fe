@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 
+import { cn } from '@/lib/utils';
+
 export interface TableColumn<T> {
   key: string;
   header: ReactNode;
-  render?: (row: T) => ReactNode;
+  render?: (row: T, rowIndex: number) => ReactNode;
   className?: string;
 }
 
@@ -12,6 +14,10 @@ export interface TableProps<T extends Record<string, unknown>> {
   data: T[];
   caption?: string;
   emptyMessage?: string;
+  scrollable?: boolean;
+  maxHeight?: string;
+  /** When set with `scrollable`, sizes the body to this many rows before scrolling. */
+  visibleRows?: number;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -19,20 +25,45 @@ export function Table<T extends Record<string, unknown>>({
   data,
   caption,
   emptyMessage = '데이터가 없습니다.',
+  scrollable = false,
+  maxHeight = '240px',
+  visibleRows,
 }: TableProps<T>) {
+  const usesRowViewport = scrollable && visibleRows != null;
+  const shouldScroll = usesRowViewport && data.length > visibleRows;
+  const rowHeightRem = 2.5;
+  const viewportHeight =
+    visibleRows != null
+      ? `calc(${rowHeightRem}rem * ${1 + visibleRows} + 4px)`
+      : undefined;
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-panel">
+    <div
+      className={cn(
+        'overflow-x-auto rounded-lg border border-line bg-panel',
+        usesRowViewport && 'overflow-y-auto overscroll-contain',
+        usesRowViewport && !shouldScroll && 'overflow-y-hidden',
+      )}
+      style={
+        usesRowViewport
+          ? { height: viewportHeight, minHeight: viewportHeight, maxHeight: viewportHeight }
+          : scrollable
+            ? { maxHeight }
+            : undefined
+      }
+    >
       <table className="w-full table-fixed border-collapse text-xs">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead>
-          <tr>
+          <tr className={usesRowViewport ? 'h-10' : undefined}>
             {columns.map((column) => (
               <th
                 key={column.key}
-                className={[
+                className={cn(
                   'border-b border-[#e5eaf0] bg-[#f8fafc] px-2 py-2 text-left font-bold text-[#475569]',
+                  usesRowViewport && 'sticky top-0 z-10 h-10',
                   column.className ?? '',
-                ].join(' ')}
+                )}
               >
                 {column.header}
               </th>
@@ -48,10 +79,23 @@ export function Table<T extends Record<string, unknown>>({
             </tr>
           ) : (
             data.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-[#e5eaf0] last:border-b-0">
+              <tr
+                key={rowIndex}
+                className={cn(
+                  'border-b border-[#e5eaf0] last:border-b-0',
+                  usesRowViewport && 'h-10 overflow-hidden',
+                )}
+              >
                 {columns.map((column) => (
-                  <td key={column.key} className={['px-2 py-2 align-middle text-ink', column.className ?? ''].join(' ')}>
-                    {column.render ? column.render(row) : String(row[column.key] ?? '')}
+                  <td
+                    key={column.key}
+                    className={cn(
+                      'align-middle text-ink',
+                      usesRowViewport ? 'px-2 py-1' : 'px-2 py-2',
+                      column.className ?? '',
+                    )}
+                  >
+                    {column.render ? column.render(row, rowIndex) : String(row[column.key] ?? '')}
                   </td>
                 ))}
               </tr>

@@ -546,21 +546,28 @@ function ProductOrderPanel({
       key: "qty",
       header: "수량",
       className: "w-[72px] px-1 py-0",
-      render: (row, rowIndex) => (
-        <input
-          type="number"
-          min={1}
-          aria-label={`${row.product} 수량`}
-          value={row.qty}
-          onChange={(event) => {
-            const nextQty = Number(event.target.value);
-            if (!Number.isNaN(nextQty)) {
-              updateProductQty(rowIndex, nextQty);
-            }
-          }}
-          className="mx-auto block h-6 w-12 rounded border border-[#cbd5e1] bg-white px-1 text-center text-xs leading-none text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        />
-      ),
+      render: (row) => {
+        const rowIndex = productItems.indexOf(row);
+        if (rowIndex < 0) {
+          return row.qty;
+        }
+
+        return (
+          <input
+            type="number"
+            min={1}
+            aria-label={`${row.product} 수량`}
+            value={row.qty}
+            onChange={(event) => {
+              const nextQty = Number(event.target.value);
+              if (!Number.isNaN(nextQty)) {
+                updateProductQty(rowIndex, nextQty);
+              }
+            }}
+            className="mx-auto block h-6 w-12 rounded border border-[#cbd5e1] bg-white px-1 text-center text-xs leading-none text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        );
+      },
     },
     { key: "note", header: "요청사항" },
     {
