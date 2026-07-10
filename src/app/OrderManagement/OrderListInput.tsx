@@ -10,12 +10,11 @@ import { Table, type TableColumn } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 const MEMBER_NAV = ["제품주문서", "인사장", "내 주문 현황", "엑셀"] as const;
-const PRODUCT_TABS = ["제품주문서", "인사장 탭", "인사장만"] as const;
 const GREETING_TABS = ["제품주문 연계", "인사장만 의뢰"] as const;
 const GREETING_NUMBERS = ["1", "2", "3", "4", "자체"] as const;
 const GREETING_SIZES = ["8칸", "6칸", "4칸"] as const;
 
-type ProductTab = (typeof PRODUCT_TABS)[number];
+type MemberNav = (typeof MEMBER_NAV)[number];
 type GreetingTab = (typeof GREETING_TABS)[number];
 
 interface ProductLineItem {
@@ -63,6 +62,28 @@ const INITIAL_ORDERS: OrderRow[] = [
     total: 300,
   },
 ];
+
+const PAGE_META: Record<
+  MemberNav,
+  { title: string; description: string }
+> = {
+  제품주문서: {
+    title: "제품주문서",
+    description: "상품별 주문수량과 인사장 연계 여부를 작성합니다.",
+  },
+  인사장: {
+    title: "인사장 작업의뢰",
+    description: "제품주문 연계 또는 인사장만 별도 작업의뢰를 접수합니다.",
+  },
+  "내 주문 현황": {
+    title: "내 주문 현황",
+    description: "접수한 주문과 인사장 작업 상태를 확인합니다.",
+  },
+  엑셀: {
+    title: "엑셀",
+    description: "주문/인사장 데이터를 엑셀로 업로드하거나 다운로드합니다.",
+  },
+};
 
 const STATUS_VARIANT: Record<string, ChipVariant> = {
   접수완료: "blue",
@@ -166,23 +187,31 @@ function Panel({
   );
 }
 
-function MemberSidebar({ activeIndex = 0 }: { activeIndex?: number }) {
+function MemberSidebar({
+  activeMenu,
+  onMenuChange,
+}: {
+  activeMenu: MemberNav;
+  onMenuChange: (menu: MemberNav) => void;
+}) {
   return (
     <aside className="bg-[#1f2937] px-3.5 py-4 text-[#e5edf7]">
       <strong className="mb-4 block text-base">개인회원</strong>
       <nav className="space-y-1.5">
-        {MEMBER_NAV.map((item, index) => (
-          <span
+        {MEMBER_NAV.map((item) => (
+          <button
             key={item}
+            type="button"
+            onClick={() => onMenuChange(item)}
             className={cn(
-              "block rounded-[7px] px-2.5 py-2.5 text-[13px]",
-              index === activeIndex
+              "block w-full rounded-[7px] px-2.5 py-2.5 text-left text-[13px] transition-colors",
+              activeMenu === item
                 ? "bg-[#334155] font-bold text-white"
-                : "text-[#cbd5e1]",
+                : "text-[#cbd5e1] hover:bg-[#2b3648]",
             )}
           >
             {item}
-          </span>
+          </button>
         ))}
       </nav>
     </aside>
@@ -257,12 +286,122 @@ function GreetingForm({
   );
 }
 
+function ProductOrderPanel({
+  productColumns,
+  productItems,
+  onGreetingClick,
+}: {
+  productColumns: TableColumn<ProductLineItem>[];
+  productItems: ProductLineItem[];
+  onGreetingClick: () => void;
+}) {
+  return (
+    <Panel>
+      <h4 className="mb-2.5 text-base font-semibold text-ink">제품 주문</h4>
+
+      <div className="grid grid-cols-1 gap-2.5 min-[900px]:grid-cols-2">
+        <Dropdown
+          label="주문구분"
+          defaultValue="delivery"
+          options={[
+            { value: "delivery", label: "택배" },
+            { value: "pickup", label: "배달" },
+          ]}
+        />
+        <div className="space-y-2.5">
+          <Input label="주문일자" type="date" defaultValue="2026-01-10" />
+          <Input
+            label="납기일자(배달완료일)"
+            type="date"
+            defaultValue="2026-01-16"
+          />
+        </div>
+        <Input label="주문자 성명" defaultValue="이순희" />
+        <Input label="연락처" defaultValue="010-1234-5678" />
+      </div>
+
+      <div className="mt-3">
+        <Table caption="제품 주문 상품 목록" columns={productColumns} data={productItems} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button variant="outline">상품 추가</Button>
+        <Button
+          className="border-brand bg-brand text-white hover:bg-[#1856bf]"
+          onClick={onGreetingClick}
+        >
+          인사장 작성
+        </Button>
+        <Button className="border-green bg-green text-white hover:bg-[#128a52]">
+          접수하기
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
+function GreetingPanel({
+  greetingTab,
+  onGreetingTabChange,
+}: {
+  greetingTab: GreetingTab;
+  onGreetingTabChange: (tab: GreetingTab) => void;
+}) {
+  return (
+    <Panel>
+      <GreetingForm greetingTab={greetingTab} onGreetingTabChange={onGreetingTabChange} />
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button className="border-brand bg-brand text-white hover:bg-[#1856bf]">
+          인사장 저장
+        </Button>
+        <Button className="border-green bg-green text-white hover:bg-[#128a52]">
+          인사장만 접수
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
+function OrderStatusPanel({
+  orderColumns,
+  orders,
+}: {
+  orderColumns: TableColumn<OrderRow>[];
+  orders: OrderRow[];
+}) {
+  return (
+    <Panel title="내 주문 현황">
+      <Table caption="내 주문 현황" columns={orderColumns} data={orders} />
+    </Panel>
+  );
+}
+
+function ExcelPanel({ onUploadClick }: { onUploadClick: () => void }) {
+  return (
+    <Panel title="엑셀 업로드 / 다운로드">
+      <p className="mb-4 text-sm text-muted-foreground">
+        주문/인사장 데이터를 엑셀 파일로 업로드하거나 다운로드할 수 있습니다.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={onUploadClick}>
+          엑셀 업로드
+        </Button>
+        <Button variant="outline">인사장 다운로드</Button>
+        <Button variant="outline">주문마스터 다운로드</Button>
+      </div>
+    </Panel>
+  );
+}
+
 export function OrderListInput() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [productTab, setProductTab] = useState<ProductTab>("제품주문서");
+  const [activeMenu, setActiveMenu] = useState<MemberNav>("제품주문서");
   const [greetingTab, setGreetingTab] = useState<GreetingTab>("제품주문 연계");
   const [productItems] = useState(INITIAL_PRODUCT_ITEMS);
   const [orders] = useState(INITIAL_ORDERS);
+
+  const pageMeta = PAGE_META[activeMenu];
 
   const productColumns: TableColumn<ProductLineItem>[] = [
     { key: "product", header: "상품명" },
@@ -301,90 +440,87 @@ export function OrderListInput() {
     },
   ];
 
+  const renderHeaderActions = () => {
+    switch (activeMenu) {
+      case "제품주문서":
+        return null;
+      case "인사장":
+        return (
+          <Button
+            variant="outline"
+            onClick={() => setGreetingTab("인사장만 의뢰")}
+          >
+            인사장만 의뢰 모드
+          </Button>
+        );
+      case "내 주문 현황":
+        return null;
+      case "엑셀":
+        return (
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            엑셀 업로드
+          </Button>
+        );
+    }
+  };
+
+  const renderContent = () => {
+    switch (activeMenu) {
+      case "제품주문서":
+        return (
+          <ProductOrderPanel
+            productColumns={productColumns}
+            productItems={productItems}
+            onGreetingClick={() => {
+              setGreetingTab("제품주문 연계");
+              setActiveMenu("인사장");
+            }}
+          />
+        );
+      case "인사장":
+        return (
+          <GreetingPanel
+            greetingTab={greetingTab}
+            onGreetingTabChange={setGreetingTab}
+          />
+        );
+      case "내 주문 현황":
+        return (
+          <OrderStatusPanel orderColumns={orderColumns} orders={orders} />
+        );
+      case "엑셀":
+        return (
+          <ExcelPanel onUploadClick={() => fileInputRef.current?.click()} />
+        );
+    }
+  };
+
   return (
     <div className="grid min-h-[730px] grid-cols-1 overflow-hidden rounded-[10px] border border-[#cbd3df] bg-white min-[1040px]:grid-cols-[200px_1fr]">
-      <MemberSidebar activeIndex={0} />
+      <MemberSidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
 
       <section className="bg-[#f7f9fc] p-4">
         <div className="mb-3.5 flex flex-col gap-3 min-[1100px]:flex-row min-[1100px]:items-start min-[1100px]:justify-between">
           <div>
-            <h3 className="text-[22px] font-semibold text-ink">제품주문서 + 인사장 접수</h3>
+            <h3 className="text-[22px] font-semibold text-ink">{pageMeta.title}</h3>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              제품 주문에 인사장을 연결하거나, 인사장만 별도 작업의뢰할 수 있습니다.
+              {pageMeta.description}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button className="border-brand bg-brand text-white hover:bg-[#1856bf]">
-              신규 주문
-            </Button>
-            <Button className="border-green bg-green text-white hover:bg-[#128a52]">
-              인사장만 의뢰
-            </Button>
-            <Button variant="outline">인사장 다운로드</Button>
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-              엑셀 업로드
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-            />
-          </div>
+          {renderHeaderActions() ? (
+            <div className="flex flex-wrap gap-2">{renderHeaderActions()}</div>
+          ) : null}
         </div>
 
-        <div className="grid grid-cols-1 gap-3.5 min-[1200px]:grid-cols-[minmax(0,1.08fr)_minmax(330px,0.92fr)]">
-          <Panel>
-            <SegTabs items={PRODUCT_TABS} value={productTab} onChange={setProductTab} />
+        <div className="max-w-5xl">{renderContent()}</div>
 
-            <h4 className="mb-2.5 text-base font-semibold text-ink">제품 주문</h4>
-
-            <div className="grid grid-cols-1 gap-2.5 min-[900px]:grid-cols-2">
-              <Dropdown
-                label="주문구분"
-                defaultValue="delivery"
-                options={[
-                  { value: "delivery", label: "택배" },
-                  { value: "pickup", label: "배달" },
-                ]}
-              />
-              <Input label="주문일자" type="date" defaultValue="2026-01-10" />
-              <Input label="성명" defaultValue="이순희" />
-              <Input label="연락처" defaultValue="010-1234-5678" />
-            </div>
-
-            <div className="mt-3">
-              <Table caption="제품 주문 상품 목록" columns={productColumns} data={productItems} />
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="outline">상품 추가</Button>
-              <Button className="border-brand bg-brand text-white hover:bg-[#1856bf]">
-                인사장 작성
-              </Button>
-              <Button className="border-green bg-green text-white hover:bg-[#128a52]">
-                접수하기
-              </Button>
-            </div>
-
-            <h4 className="mb-2.5 mt-4 text-base font-semibold text-ink">내 주문 현황</h4>
-            <Table caption="내 주문 현황" columns={orderColumns} data={orders} />
-          </Panel>
-
-          <Panel title="인사장 작업의뢰">
-            <GreetingForm greetingTab={greetingTab} onGreetingTabChange={setGreetingTab} />
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button className="border-brand bg-brand text-white hover:bg-[#1856bf]">
-                인사장 저장
-              </Button>
-              <Button className="border-green bg-green text-white hover:bg-[#128a52]">
-                인사장만 접수
-              </Button>
-            </div>
-          </Panel>
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          className="hidden"
+        />
       </section>
     </div>
   );
