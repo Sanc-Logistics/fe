@@ -18,6 +18,8 @@ export interface TableProps<T extends Record<string, unknown>> {
   maxHeight?: string;
   /** When set with `scrollable`, sizes the body to this many rows before scrolling. */
   visibleRows?: number;
+  onRowClick?: (row: T, rowIndex: number) => void;
+  getRowClassName?: (row: T, rowIndex: number) => string | undefined;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -28,6 +30,8 @@ export function Table<T extends Record<string, unknown>>({
   scrollable = false,
   maxHeight = '240px',
   visibleRows,
+  onRowClick,
+  getRowClassName,
 }: TableProps<T>) {
   const usesRowViewport = scrollable && visibleRows != null;
   const shouldScroll = usesRowViewport && data.length > visibleRows;
@@ -81,9 +85,12 @@ export function Table<T extends Record<string, unknown>>({
             data.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
+                onClick={onRowClick ? () => onRowClick(row, rowIndex) : undefined}
                 className={cn(
                   'border-b border-[#e5eaf0] last:border-b-0',
                   usesRowViewport && 'h-10 overflow-hidden',
+                  onRowClick && 'cursor-pointer hover:bg-[#f1f5f9]',
+                  getRowClassName?.(row, rowIndex),
                 )}
               >
                 {columns.map((column) => (

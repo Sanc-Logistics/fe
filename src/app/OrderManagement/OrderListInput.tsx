@@ -3,6 +3,7 @@
 import { Check, Menu, Plus, X } from "lucide-react";
 import { useRef, useState, useEffect, type ReactNode } from "react";
 
+import { LogoutButton } from "@/components/auth-guard";
 import { Button } from "@/components/ui/button";
 import { Chip, type ChipVariant } from "@/components/ui/chip";
 import { Dialog } from "@/components/ui/dialog";
@@ -289,9 +290,12 @@ function MemberSidebar({
   onMenuChange: (menu: MemberNav) => void;
 }) {
   return (
-    <aside className="hidden bg-[#1f2937] px-3.5 py-4 text-[#e5edf7] min-[1040px]:block">
+    <aside className="hidden bg-[#1f2937] px-3.5 py-4 text-[#e5edf7] min-[1040px]:flex min-[1040px]:flex-col">
       <strong className="mb-4 block text-base">개인회원</strong>
-      <MemberNavList activeMenu={activeMenu} onMenuChange={onMenuChange} />
+      <div className="flex-1">
+        <MemberNavList activeMenu={activeMenu} onMenuChange={onMenuChange} />
+      </div>
+      <LogoutButton className="mt-4 w-full rounded-[7px] px-2.5 py-2 text-left text-[13px] text-[#cbd5e1] hover:bg-[#2b3648]" />
     </aside>
   );
 }
@@ -338,6 +342,7 @@ function MobileMemberHeader({
                 onToggle();
               }}
             />
+            <LogoutButton className="mt-3 w-full rounded-[7px] px-2.5 py-2.5 text-left text-[13px] text-[#cbd5e1] hover:bg-[#2b3648]" />
           </div>
         </>
       ) : null}

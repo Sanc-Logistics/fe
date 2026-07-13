@@ -3,7 +3,10 @@
 import { Menu, Plus, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
+import { OrderDataMng } from "@/app/admin/OrderManagement/OrderDataMng";
 import { OrderListInput } from "@/app/OrderManagement/OrderListInput";
+import { OrderPrintPreview } from "@/app/admin/OrderManagement/OrderPrintPreview";
+import { LogoutButton } from "@/components/auth-guard";
 import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
@@ -165,9 +168,12 @@ function AdminSidebar({
   onMenuChange: (menu: AdminNav) => void;
 }) {
   return (
-    <aside className="hidden border-r border-line bg-white px-3.5 py-4 min-[1040px]:block">
+    <aside className="hidden border-r border-line bg-white px-3.5 py-4 min-[1040px]:flex min-[1040px]:flex-col">
       <strong className="mb-4 block text-base text-ink">관리자</strong>
-      <AdminNavList activeMenu={activeMenu} onMenuChange={onMenuChange} />
+      <div className="flex-1">
+        <AdminNavList activeMenu={activeMenu} onMenuChange={onMenuChange} />
+      </div>
+      <LogoutButton className="mt-4 w-full rounded-[7px] border border-line px-2.5 py-2 text-left text-[13px] text-[#64748b] hover:bg-soft" />
     </aside>
   );
 }
@@ -186,7 +192,7 @@ function MobileAdminHeader({
   return (
     <div className="relative mb-3 min-[1040px]:hidden">
       <div className="flex items-center justify-between rounded-lg bg-[#4b5563] px-4 py-3 text-white">
-        <strong className="text-base">휴대폰 - {activeMenu}</strong>
+        <strong className="text-base">{activeMenu}</strong>
         <button
           type="button"
           aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
@@ -214,6 +220,7 @@ function MobileAdminHeader({
                 onToggle();
               }}
             />
+            <LogoutButton className="mt-3 w-full rounded-[7px] border border-line px-2.5 py-2.5 text-left text-[13px] text-[#64748b] hover:bg-soft" />
           </div>
         </>
       ) : null}
@@ -601,6 +608,14 @@ export function OrderListMng() {
           <OrderListInput embedded />
         </div>
       );
+    }
+
+    if (activeMenu === "출력 관리") {
+      return <OrderPrintPreview />;
+    }
+
+    if (activeMenu === "데이터 관리") {
+      return <OrderDataMng />;
     }
 
     return (
