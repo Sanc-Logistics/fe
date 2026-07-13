@@ -720,7 +720,12 @@ function ExcelPanel({ onUploadClick }: { onUploadClick: () => void }) {
   );
 }
 
-export function OrderListInput() {
+export function OrderListInput({
+  embedded = false,
+}: {
+  /** When true, renders only the order form content (no member sidebar shell). */
+  embedded?: boolean;
+} = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMenu, setActiveMenu] = useState<MemberNav>("제품주문서");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -808,18 +813,9 @@ export function OrderListInput() {
     }
   };
 
-  return (
-    <div className="grid min-h-[730px] grid-cols-1 overflow-hidden rounded-[10px] border border-[#cbd3df] bg-white min-[1040px]:grid-cols-[200px_1fr]">
-      <MemberSidebar activeMenu={activeMenu} onMenuChange={handleMenuChange} />
-
-      <section className="bg-[#f7f9fc] p-4">
-        <MobileMemberHeader
-          activeMenu={activeMenu}
-          isOpen={isMobileMenuOpen}
-          onToggle={() => setIsMobileMenuOpen((open) => !open)}
-          onMenuChange={handleMenuChange}
-        />
-
+  const content = (
+    <>
+      {!embedded ? (
         <div className="mb-3.5 flex flex-col gap-3 min-[1100px]:flex-row min-[1100px]:items-start min-[1100px]:justify-between">
           <div>
             <h3 className="text-[22px] font-semibold text-ink">{pageMeta.title}</h3>
@@ -832,15 +828,36 @@ export function OrderListInput() {
             <div className="flex flex-wrap gap-2">{renderHeaderActions()}</div>
           ) : null}
         </div>
+      ) : null}
 
-        <div className="w-full">{renderContent()}</div>
+      <div className="w-full">{renderContent()}</div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.xlsx,.xls"
-          className="hidden"
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        className="hidden"
+      />
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="grid min-h-[730px] grid-cols-1 overflow-hidden rounded-[10px] border border-[#cbd3df] bg-white min-[1040px]:grid-cols-[200px_1fr]">
+      <MemberSidebar activeMenu={activeMenu} onMenuChange={handleMenuChange} />
+
+      <section className="bg-[#f7f9fc] p-4">
+        <MobileMemberHeader
+          activeMenu={activeMenu}
+          isOpen={isMobileMenuOpen}
+          onToggle={() => setIsMobileMenuOpen((open) => !open)}
+          onMenuChange={handleMenuChange}
         />
+
+        {content}
       </section>
     </div>
   );
