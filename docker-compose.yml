@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  sanc-db:
+    image: postgres:15-alpine
+    container_name: sanc-logistics-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sanc_logistics
+      POSTGRES_DB: sanc_logistics
+    ports:
+      - "5434:5432" # Maps host port 5434 to container port 5432
+    volumes:
+      - sanc_data:/var/lib/postgresql/data
+
+volumes:
+  sanc_data:

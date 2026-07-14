@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,17 @@ import {
   getAuthUser,
   getHomePathForRole,
   saveAuthUser,
+  type AuthUser,
 } from "@/lib/auth";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const signupSuccess = searchParams.get("signup") === "success";
 
   useEffect(() => {
     const existing = getAuthUser();
@@ -27,21 +30,53 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
 
-    const user = authenticate(username, password);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+        }),
+      });
 
-    if (!user) {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      const data = (await response.json()) as {
+        message?: string;
+        user?: AuthUser;
+      };
+
+      if (response.ok && data.user) {
+        saveAuthUser(data.user);
+        router.push(getHomePathForRole(data.user.role));
+        return;
+      }
+
+      // Fallback for temporary mock accounts (e.g. admin/admin) when not in DB.
+      const mockUser = authenticate(username, password);
+      if (mockUser) {
+        saveAuthUser(mockUser);
+        router.push(getHomePathForRole(mockUser.role));
+        return;
+      }
+
+      setError(data.message ?? "아이디 또는 비밀번호가 올바르지 않습니다.");
+    } catch {
+      const mockUser = authenticate(username, password);
+      if (mockUser) {
+        saveAuthUser(mockUser);
+        router.push(getHomePathForRole(mockUser.role));
+        return;
+      }
+
+      setError("로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    saveAuthUser(user);
-    router.push(getHomePathForRole(user.role));
   };
 
   return (
@@ -53,6 +88,12 @@ export default function LoginPage() {
             관리자 또는 개인회원 계정으로 로그인하세요.
           </p>
         </div>
+
+        {signupSuccess ? (
+          <p className="w-full rounded-[7px] border border-green/30 bg-[#e8f8ef] px-3 py-2 text-sm text-green">
+            회원가입이 완료되었습니다. 로그인해 주세요.
+          </p>
+        ) : null}
 
         <form className="flex w-full flex-col gap-5" noValidate onSubmit={handleSubmit}>
           <div className="flex flex-col gap-2">
@@ -102,9 +143,10 @@ export default function LoginPage() {
         </form>
 
         <div className="w-full rounded-[7px] border border-line bg-[#f8fafc] px-3 py-3 text-xs text-[#64748b]">
-          <p className="font-semibold text-ink">임시 계정 (API 연동 전)</p>
+          <p className="font-semibold text-ink">계정 안내</p>
+          <p className="mt-1">가입 회원: DB 로그인 API 사용 (예: tenorseon)</p>
+          <p className="mt-2 font-semibold text-ink">임시 계정 (DB 미등록 시 fallback)</p>
           <p className="mt-1">관리자: admin / admin</p>
-          <p className="mt-2 font-semibold text-ink">개인회원 (아이디 = 비밀번호)</p>
           <ul className="mt-1 space-y-0.5">
             <li>이순희 — leesh01</li>
             <li>김주문 — kimjm02</li>
@@ -116,9 +158,9 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-[#64748b]">
-          개인회원이시면 아래 가입하기 버튼을 클릭하여 가입해 주세요.{" "}
+          개인회원이시면 가입하기 버튼을 클릭하여 가입해 주세요.{" "}
           <Link
-            href="/signup"
+            href="/members/signup"
             className="font-semibold text-[#F97B22] underline underline-offset-2"
           >
             가입하기
@@ -126,5 +168,19 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#e9edf3] text-sm text-muted-foreground">
+          로그인 화면을 불러오는 중...
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

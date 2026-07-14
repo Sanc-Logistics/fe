@@ -1,0 +1,112 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+enum OrderStatus {
+  PLACED
+  PRINTING_COMPLETE
+  WAITING_FOR_SHIPMENT
+  CANCELLED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String   // Hashed password
+  fullname  String
+  email     String?
+  phone     String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]  // One-to-many relationship: A user can place many orders
+}
+
+
+
+model Order {
+  id              Int          @id @default(autoincrement())
+  orderNumber     String       @unique // E.g., "SANC-2026-0001"
+  status          OrderStatus  @default(PLACED)
+  totalAmount     Float        @default(0.0)
+  notes           String?
+  
+  // Relations
+  userId          Int
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+  
+  // One-to-One: Every order has exactly one shipment profile
+  shipment        Shipment?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+
+
+// 2. New Shipment Model for Logistics Tracking
+model Shipment {
+  id              Int             @id @default(autoincrement())
+  fulfillmentType FulfillmentType @default(PARCEL)
+  
+  // Fields for PARCEL (Truck delivery)
+  carrier         String?         // E.g., "Sanc-Trucking-04", "FedEx"
+  trackingNumber  String?         
+  deliveryAddress String?         // Required if PARCEL
+  estimatedWindow DateTime?       // Expected arrival date/time
+
+  // Fields for PICKUP (Self-service)
+  pickupLocation  String?         // Which warehouse/hub they are coming to
+  pickupTimeSlot  DateTime?       // Scheduled time window for customer arrival
+  licensePlate    String?         // Optional: Vehicle info for security verification
+  
+  // Tracking status specifically for the physical movement
+  shippedAt       DateTime?
+  deliveredAt     DateTime?       // Or pickedUpAt
+
+  // Relation back to the Order
+  orderId         Int             @unique
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  productName String
+  quantity    Int      @default(1)
+  price       Float
+
+  // Relations
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// 1. Define how the package gets to its destination
+enum FulfillmentType {
+  PARCEL   // Truck delivery by SANC
+  PICKUP   // Customer picks up with their own vehicle to save fees
+}
+
+

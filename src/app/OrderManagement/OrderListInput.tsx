@@ -9,6 +9,7 @@ import { Chip, type ChipVariant } from "@/components/ui/chip";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, type TableColumn } from "@/components/ui/table";
+import { getAuthUser, saveAuthUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const MEMBER_NAV = ["제품주문서", "인사장", "내 주문 현황", "엑셀"] as const;
@@ -523,9 +524,68 @@ function ProductOrderPanel({
   const [orderType, setOrderType] = useState<OrderType>("delivery");
   const [productItems, setProductItems] = useState(INITIAL_PRODUCT_ITEMS);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [ordererName, setOrdererName] = useState("");
+  const [ordererPhone, setOrdererPhone] = useState("");
   const isDesktop = useMinWidth(1040);
   const deliveryDateLabel =
     orderType === "delivery" ? "납기일(택배발송일)" : "납기일(배달완료일)";
+
+  useEffect(() => {
+    const auth = getAuthUser();
+    if (!auth) {
+      return;
+    }
+
+    if (auth.name) {
+      setOrdererName(auth.name);
+    }
+    if (auth.phone) {
+      setOrdererPhone(auth.phone);
+    }
+
+    let cancelled = false;
+
+    const loadMemberProfile = async () => {
+      try {
+        const response = await fetch(
+          `/api/auth/me?username=${encodeURIComponent(auth.username)}`,
+        );
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          user?: { name?: string; phone?: string; id?: number; role?: string };
+        };
+
+        if (cancelled || !data.user) {
+          return;
+        }
+
+        if (data.user.name) {
+          setOrdererName(data.user.name);
+        }
+        if (data.user.phone) {
+          setOrdererPhone(data.user.phone);
+        }
+
+        saveAuthUser({
+          ...auth,
+          id: data.user.id ?? auth.id,
+          name: data.user.name ?? auth.name,
+          phone: data.user.phone ?? auth.phone,
+        });
+      } catch {
+        // Keep session values when profile fetch fails.
+      }
+    };
+
+    void loadMemberProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const addProductItem = (item: { product: string; qty: number; note: string }) => {
     setProductItems((current) => [
@@ -595,8 +655,18 @@ function ProductOrderPanel({
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
-        <Input label="주문자 성명" defaultValue="이순희" />
-        <Input label="주문자 연락처" defaultValue="010-1234-5678" />
+        <Input
+          label="주문자 성명"
+          value={ordererName}
+          onChange={(event) => setOrdererName(event.target.value)}
+          placeholder="주문자 성명"
+        />
+        <Input
+          label="주문자 연락처"
+          value={ordererPhone}
+          onChange={(event) => setOrdererPhone(event.target.value)}
+          placeholder="010-1234-5678"
+        />
         <Input label="주문일자" type="date" defaultValue="2026-01-10" />
         <Input
           label={deliveryDateLabel}

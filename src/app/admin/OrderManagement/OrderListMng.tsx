@@ -32,6 +32,8 @@ const STATUS_FILTER_OPTIONS = [
 const MOBILE_STATUS_CHIPS = [
   { value: "접수", label: "접수" },
   { value: "발송대기", label: "발송대기" },
+  { value: "출력완료", label: "출력완료" },
+  { value: "취소", label: "취소" },
 ] as const;
 
 type AdminNav = (typeof ADMIN_NAV)[number];
@@ -272,7 +274,6 @@ function DesktopFilterBar({
   onEndDateChange,
   onStatusChange,
   onKeywordChange,
-  onSearch,
 }: {
   startDate: string;
   endDate: string;
@@ -282,11 +283,10 @@ function DesktopFilterBar({
   onEndDateChange: (value: string) => void;
   onStatusChange: (value: StatusFilter) => void;
   onKeywordChange: (value: string) => void;
-  onSearch: () => void;
 }) {
   return (
     <Panel>
-      <div className="grid grid-cols-1 gap-2.5 min-[900px]:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.75fr)_minmax(0,1.3fr)_auto]">
+      <div className="grid grid-cols-1 gap-2.5 min-[900px]:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.75fr)_minmax(0,1.3fr)]">
         <PeriodInputs
           startDate={startDate}
           endDate={endDate}
@@ -307,16 +307,6 @@ function DesktopFilterBar({
           onChange={(event) => onKeywordChange(event.target.value)}
           placeholder="성명 / 연락처 / 주문번호"
         />
-
-        <div className="flex items-end">
-          <Button
-            type="button"
-            className="h-9 w-full border-[#1f2937] bg-[#1f2937] px-5 text-white hover:bg-[#111827] xl:w-auto"
-            onClick={onSearch}
-          >
-            검색
-          </Button>
-        </div>
       </div>
     </Panel>
   );
@@ -392,17 +382,43 @@ function MobileOrderList({
           className="mt-2.5 min-h-10 w-full rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] px-3 py-2.5 text-sm text-ink placeholder:text-[#94a3b8] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
         />
 
-        <div className="mt-2.5 flex gap-2">
+        <div className="mt-2.5 grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={onNewOrder}
-            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-[10px] bg-[#334155] px-3 text-sm font-semibold text-white"
+            className="inline-flex min-h-9 items-center justify-center gap-1 rounded-[10px] bg-[#334155] px-2 text-sm font-semibold text-white"
           >
             <Plus className="size-4" />
             신규
           </button>
+          <button
+            type="button"
+            onClick={() => onStatusChange("all")}
+            className={cn(
+              "min-h-9 rounded-[10px] px-2 text-sm font-semibold text-white transition-colors",
+              status === "all" ? "bg-[#1d4ed8]" : "bg-[#3b82f6]",
+            )}
+          >
+            전체
+          </button>
           {MOBILE_STATUS_CHIPS.map((chip) => {
             const isActive = status === chip.value;
+            const colorClass =
+              chip.value === "접수"
+                ? isActive
+                  ? "bg-[#2563eb]"
+                  : "bg-[#3b82f6]"
+                : chip.value === "발송대기"
+                  ? isActive
+                    ? "bg-[#475569]"
+                    : "bg-[#64748b]"
+                  : chip.value === "출력완료"
+                    ? isActive
+                      ? "bg-[#0f766e]"
+                      : "bg-[#14b8a6]"
+                    : isActive
+                      ? "bg-[#b91c1c]"
+                      : "bg-[#ef4444]";
 
             return (
               <button
@@ -410,14 +426,8 @@ function MobileOrderList({
                 type="button"
                 onClick={() => toggleStatusChip(chip.value)}
                 className={cn(
-                  "min-h-9 flex-1 rounded-[10px] px-3 text-sm font-semibold text-white transition-colors",
-                  chip.value === "접수"
-                    ? isActive
-                      ? "bg-[#2563eb]"
-                      : "bg-[#3b82f6]/90"
-                    : isActive
-                      ? "bg-[#475569]"
-                      : "bg-[#64748b]",
+                  "min-h-9 rounded-[10px] px-2 text-sm font-semibold text-white transition-colors",
+                  colorClass,
                 )}
               >
                 {chip.label}
@@ -477,26 +487,8 @@ export function OrderListMng() {
   const [endDate, setEndDate] = useState("2026-01-31");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [keyword, setKeyword] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState({
-    startDate: "2026-01-01",
-    endDate: "2026-01-31",
-    status: "all" as StatusFilter,
-    keyword: "",
-  });
 
-  const desktopOrders = useMemo(
-    () =>
-      filterOrders({
-        orders: ADMIN_ORDERS,
-        startDate: appliedFilters.startDate,
-        endDate: appliedFilters.endDate,
-        status: appliedFilters.status,
-        keyword: appliedFilters.keyword,
-      }),
-    [appliedFilters],
-  );
-
-  const mobileOrders = useMemo(
+  const filteredOrders = useMemo(
     () =>
       filterOrders({
         orders: ADMIN_ORDERS,
@@ -529,15 +521,6 @@ export function OrderListMng() {
     },
   ];
 
-  const handleSearch = () => {
-    setAppliedFilters({
-      startDate,
-      endDate,
-      status: statusFilter,
-      keyword,
-    });
-  };
-
   const handleMenuChange = (menu: AdminNav) => {
     setActiveMenu(menu);
     setIsMobileMenuOpen(false);
@@ -552,7 +535,7 @@ export function OrderListMng() {
       return (
         <>
           <MobileOrderList
-            orders={mobileOrders}
+            orders={filteredOrders}
             startDate={startDate}
             endDate={endDate}
             status={statusFilter}
@@ -574,14 +557,13 @@ export function OrderListMng() {
               onEndDateChange={setEndDate}
               onStatusChange={setStatusFilter}
               onKeywordChange={setKeyword}
-              onSearch={handleSearch}
             />
 
             <Panel>
               <Table
                 caption="관리자 주문 목록"
                 columns={orderColumns}
-                data={desktopOrders}
+                data={filteredOrders}
               />
             </Panel>
           </div>
