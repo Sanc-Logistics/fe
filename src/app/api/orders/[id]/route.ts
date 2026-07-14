@@ -5,10 +5,11 @@ import { prisma } from '@/lib/prisma';
 // GET /api/orders/[id]
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const order = await prisma.order.findUnique({
-    where: { id: Number(params.id) },
+    where: { id: Number(id) },
   });
   
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
