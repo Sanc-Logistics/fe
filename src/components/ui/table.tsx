@@ -18,8 +18,11 @@ export interface TableProps<T extends Record<string, unknown>> {
   maxHeight?: string;
   /** When set with `scrollable`, sizes the body to this many rows before scrolling. */
   visibleRows?: number;
+  /** Row height used with `visibleRows` (default 2.5rem). Increase for larger table fonts. */
+  rowHeightRem?: number;
   onRowClick?: (row: T, rowIndex: number) => void;
   getRowClassName?: (row: T, rowIndex: number) => string | undefined;
+  className?: string;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -30,12 +33,12 @@ export function Table<T extends Record<string, unknown>>({
   scrollable = false,
   maxHeight = '240px',
   visibleRows,
+  rowHeightRem = 2.5,
   onRowClick,
   getRowClassName,
+  className,
 }: TableProps<T>) {
   const usesRowViewport = scrollable && visibleRows != null;
-  const shouldScroll = usesRowViewport && data.length > visibleRows;
-  const rowHeightRem = 2.5;
   const viewportHeight =
     visibleRows != null
       ? `calc(${rowHeightRem}rem * ${1 + visibleRows} + 4px)`
@@ -45,27 +48,28 @@ export function Table<T extends Record<string, unknown>>({
     <div
       className={cn(
         'overflow-x-auto rounded-lg border border-line bg-panel',
-        usesRowViewport && 'overflow-y-auto overscroll-contain',
-        usesRowViewport && !shouldScroll && 'overflow-y-hidden',
+        scrollable && 'overflow-y-auto overscroll-contain',
       )}
       style={
         usesRowViewport
-          ? { height: viewportHeight, minHeight: viewportHeight, maxHeight: viewportHeight }
+          ? { maxHeight: viewportHeight }
           : scrollable
             ? { maxHeight }
             : undefined
       }
     >
-      <table className="w-full table-fixed border-collapse text-xs">
+      <table
+        className={cn('w-full table-fixed border-collapse text-xs', className)}
+      >
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead>
-          <tr className={usesRowViewport ? 'h-10' : undefined}>
+          <tr>
             {columns.map((column) => (
               <th
                 key={column.key}
                 className={cn(
                   'border-b border-[#e5eaf0] bg-[#f8fafc] px-2 py-2 text-left font-bold text-[#475569]',
-                  usesRowViewport && 'sticky top-0 z-10 h-10',
+                  scrollable && 'sticky top-0 z-10',
                   column.className ?? '',
                 )}
               >
@@ -88,7 +92,6 @@ export function Table<T extends Record<string, unknown>>({
                 onClick={onRowClick ? () => onRowClick(row, rowIndex) : undefined}
                 className={cn(
                   'border-b border-[#e5eaf0] last:border-b-0',
-                  usesRowViewport && 'h-10 overflow-hidden',
                   onRowClick && 'cursor-pointer hover:bg-[#f1f5f9]',
                   getRowClassName?.(row, rowIndex),
                 )}
@@ -97,8 +100,7 @@ export function Table<T extends Record<string, unknown>>({
                   <td
                     key={column.key}
                     className={cn(
-                      'align-middle text-ink',
-                      usesRowViewport ? 'px-2 py-1' : 'px-2 py-2',
+                      'align-middle text-ink px-2 py-2',
                       column.className ?? '',
                     )}
                   >

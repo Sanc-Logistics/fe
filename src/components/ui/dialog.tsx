@@ -2,14 +2,17 @@
 
 import type { ReactNode } from 'react';
 
+import { cn } from '@/lib/utils';
+
 export interface DialogProps {
   open: boolean;
   title: string;
   children: ReactNode;
   onClose?: () => void;
+  className?: string;
 }
 
-export function Dialog({ open, title, children, onClose }: DialogProps) {
+export function Dialog({ open, title, children, onClose, className }: DialogProps) {
   if (!open) {
     return null;
   }
@@ -20,7 +23,10 @@ export function Dialog({ open, title, children, onClose }: DialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
-        className="w-full max-w-md rounded-xl border border-line bg-panel p-5 shadow-[0_14px_34px_rgba(18,38,63,0.08)]"
+        className={cn(
+          'w-full max-w-md rounded-xl border border-line bg-panel p-5 shadow-[0_14px_34px_rgba(18,38,63,0.08)]',
+          className,
+        )}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 id="dialog-title" className="text-lg font-semibold text-ink">

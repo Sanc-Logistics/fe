@@ -1,0 +1,216 @@
+/** Parse a single field from Order.notes (segments separated by " / "). */
+export function parseOrderNoteField(
+  notes: string | null | undefined,
+  field: string,
+): string {
+  if (!notes) {
+    return "";
+  }
+
+  const pattern = new RegExp(`${field}:([^/]+)`);
+  return pattern.exec(notes)?.[1]?.trim() ?? "";
+}
+
+export function parseOrdererFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "주문자");
+}
+
+export function parseOrdererPhoneFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "연락처");
+}
+
+export function parseOrderDateFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "주문일자");
+}
+
+export function parseChurchFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "중앙");
+}
+
+export function parseDeliveryCompanyFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "배달업체명");
+}
+
+export function parseParcelCompanyFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "택배업체명");
+}
+
+export function parseBranchStoreFromNotes(notes: string | null | undefined) {
+  return (
+    parseOrderNoteField(notes, "주문작업지역") ||
+    parseOrderNoteField(notes, "지부매장")
+  );
+}
+
+export function parseGreetingKindFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "인사장종류");
+}
+
+export function parseGreetingNumberFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "인사장번호");
+}
+
+export function parseGreetingSelfFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "인사장자체") === "Y";
+}
+
+export function parseBusinessCardFromNotes(notes: string | null | undefined) {
+  return parseOrderNoteField(notes, "명함동봉") === "Y";
+}
+
+export function parseGreetingSpecialNoteFromNotes(
+  notes: string | null | undefined,
+) {
+  return parseOrderNoteField(notes, "인사장특이사항");
+}
+
+/** `보내는사람:이름 / 전화 / 주소` embedded in notes. */
+export function parseSenderPartsFromNotes(notes: string | null | undefined): {
+  name: string;
+  phone: string;
+  address: string;
+} {
+  if (!notes) {
+    return { name: "", phone: "", address: "" };
+  }
+  const match =
+    /보내는사람:\s*([^/]+?)\s*\/\s*([^/]+?)\s*\/\s*(.+?)(?=\s*\/\s*(?:지부매장|인사장종류|인사장번호|\[)|$)/.exec(
+      notes,
+    );
+  if (!match) {
+    return {
+      name: parseOrderNoteField(notes, "보내는사람"),
+      phone: "",
+      address: "",
+    };
+  }
+  return {
+    name: match[1].trim(),
+    phone: match[2].trim(),
+    address: match[3].trim(),
+  };
+}
+
+/** `받는분:이름 / 전화 / 주소` embedded in notes. */
+export function parseRecipientPartsFromNotes(notes: string | null | undefined): {
+  name: string;
+  phone: string;
+  address: string;
+} {
+  if (!notes) {
+    return { name: "", phone: "", address: "" };
+  }
+  const match =
+    /받는분:\s*([^/]+?)\s*\/\s*([^/]+?)\s*\/\s*(.+?)(?=\s*\/\s*(?:택배발송일|보내는사람|주문작업지역|지부매장|인사장종류|\[)|$)/.exec(
+      notes,
+    );
+  if (!match) {
+    return {
+      name: "",
+      phone: "",
+      address: parseOrderNoteField(notes, "받는분주소"),
+    };
+  }
+  return {
+    name: match[1].trim(),
+    phone: match[2].trim(),
+    address: match[3].trim(),
+  };
+}
+
+export function parseDeliveryDateTimeFromNotes(
+  notes: string | null | undefined,
+) {
+  return parseOrderNoteField(notes, "배달일");
+}
+
+/** Map saved greeting kind to 인사장소재 text on the print sheet. */
+export function greetingMaterialFromNotes(notes: string | null | undefined) {
+  const kind = parseGreetingKindFromNotes(notes);
+  if (kind === "자체") {
+    return "자체 인사장";
+  }
+  if (kind === "없음") {
+    return "없음";
+  }
+  // 본사 (default)
+  return "최지원";
+}
+
+export function parseShipDateFromNotes(notes: string | null | undefined) {
+  const parcelShipDate = parseOrderNoteField(notes, "택배발송일");
+  if (parcelShipDate) {
+    return parcelShipDate.slice(0, 10);
+  }
+
+  const deliveryDate = parseOrderNoteField(notes, "배달일");
+  if (deliveryDate) {
+    return deliveryDate.slice(0, 10);
+  }
+
+  return "";
+}
+
+export function parseOrderTypeFromNotes(notes: string | null | undefined) {
+  if (!notes) {
+    return "택배";
+  }
+
+  const hasDelivery =
+    notes.includes("[배달]") || notes.includes("배달업체명:");
+  const hasParcel =
+    notes.includes("[택배]") || notes.includes("택배업체명:");
+
+  if (hasDelivery && hasParcel) {
+    return "배달/택배";
+  }
+  if (hasDelivery) {
+    return "배달";
+  }
+  if (hasParcel) {
+    return "택배";
+  }
+
+  return "택배";
+}
+
+/** Extract request-note for a product line from notes segments like `[배달] 명진 1호 300개(개별택배)`. */
+export function parseItemNoteFromNotes(
+  notes: string | null | undefined,
+  productName: string,
+  quantity?: number,
+): string {
+  if (!notes || !productName) {
+    return "";
+  }
+
+  const segments = notes.split(" / ").map((segment) => segment.trim());
+  const escapedName = productName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const qtyPart =
+    quantity != null && Number.isFinite(quantity)
+      ? String(quantity)
+      : "\\d+";
+  const pattern = new RegExp(
+    `^\\[(배달|택배)\\]\\s+${escapedName}\\s+${qtyPart}개(?:\\((.*)\\))?$`,
+  );
+
+  for (const segment of segments) {
+    const match = pattern.exec(segment);
+    if (match) {
+      return match[2]?.trim() ?? "";
+    }
+  }
+
+  // Fallback: match by product name only (qty may have changed)
+  const loosePattern = new RegExp(
+    `^\\[(배달|택배)\\]\\s+${escapedName}\\s+\\d+개(?:\\((.*)\\))?$`,
+  );
+  for (const segment of segments) {
+    const match = loosePattern.exec(segment);
+    if (match) {
+      return match[2]?.trim() ?? "";
+    }
+  }
+
+  return "";
+}

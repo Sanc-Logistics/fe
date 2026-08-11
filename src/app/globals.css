@@ -145,4 +145,29 @@
   html {
     @apply font-sans;
   }
+  /* Chrome overlaps year digits (e.g. "202020") in narrow date fields with large fonts. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"] {
+    font-variant-ligatures: none;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="date"]::-webkit-datetime-edit-year-field {
+    min-width: 4ch;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+  }
+}
+
+/* Keep 선물세트 주문서 cell backgrounds when using browser Print. */
+@media print {
+  .gift-set-print-sheet,
+  .gift-set-print-sheet * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }

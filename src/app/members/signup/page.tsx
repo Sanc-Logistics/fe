@@ -2,18 +2,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { registerLocalMember } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 type FieldErrors = Partial<
-  Record<"fullname" | "username" | "phone" | "email" | "password" | "passwordConfirm", string>
+  Record<
+    "fullname" | "church" | "phone" | "email" | "password" | "passwordConfirm",
+    string
+  >
 >;
 
-type UsernameCheckStatus = "idle" | "checking" | "available" | "unavailable" | "error";
+type PhoneCheckStatus = "idle" | "checking" | "available" | "unavailable" | "error";
+
+type EmailCheckStatus = "idle" | "checking" | "available" | "error";
+
+type ChurchOption = {
+  id: number;
+  name: string;
+  region: string;
+  branchCode: string | null;
+  assigner: string;
+};
 
 /** Force contact input into 000-0000-0000 (3-4-4 digits only). */
 function formatPhoneInput(value: string) {
@@ -28,16 +48,19 @@ function formatPhoneInput(value: string) {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
+function phoneToUsername(phone: string) {
+  return phone.replace(/\D/g, "");
+}
+
 function validateClientForm(values: {
   fullname: string;
-  username: string;
+  churchId: number | null;
   phone: string;
   email: string;
   password: string;
   passwordConfirm: string;
 }): FieldErrors {
   const errors: FieldErrors = {};
-  const username = values.username.trim().toLowerCase();
 
   if (!values.fullname.trim()) {
     errors.fullname = "이름을 입력해 주세요.";
@@ -45,10 +68,8 @@ function validateClientForm(values: {
     errors.fullname = "이름은 2자 이상 입력해 주세요.";
   }
 
-  if (!username) {
-    errors.username = "아이디를 입력해 주세요.";
-  } else if (!/^[a-z0-9]{4,20}$/.test(username)) {
-    errors.username = "아이디는 영문 소문자와 숫자 4~20자로 입력해 주세요.";
+  if (!values.churchId) {
+    errors.church = "중앙을 선택해 주세요.";
   }
 
   if (!values.phone.trim()) {
@@ -76,10 +97,143 @@ function validateClientForm(values: {
   return errors;
 }
 
+function ChurchSearchField({
+  churches,
+  isLoading,
+  query,
+  selectedId,
+  error,
+  onQueryChange,
+  onSelect,
+}: {
+  churches: ChurchOption[];
+  isLoading: boolean;
+  query: string;
+  selectedId: number | null;
+  error?: string;
+  onQueryChange: (value: string) => void;
+  onSelect: (church: ChurchOption) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) {
+      return churches.slice(0, 20);
+    }
+    return churches
+      .filter((church) => {
+        const haystack = [
+          church.name,
+          church.region,
+          church.branchCode ?? "",
+          church.assigner,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(keyword);
+      })
+      .slice(0, 30);
+  }, [churches, query]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <label htmlFor="church" className="mb-1.5 block text-2xl font-bold text-ink">
+        중앙 (필수)
+      </label>
+      <input
+        id="church"
+        type="text"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-controls="church-suggestions"
+        aria-autocomplete="list"
+        value={query}
+        onChange={(event) => {
+          onQueryChange(event.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => setIsOpen(true)}
+        placeholder="예: 5, 서울, 원주"
+        autoComplete="off"
+        className={cn(
+          "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-lg text-ink",
+          "placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
+          error ? "border-red" : "",
+        )}
+        aria-invalid={error ? true : undefined}
+      />
+      {isOpen ? (
+        <ul
+          id="church-suggestions"
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-[7px] border border-line bg-white shadow-lg"
+        >
+          {isLoading ? (
+            <li className="px-3 py-2.5 text-sm text-[#64748b]">중앙 목록 불러오는 중...</li>
+          ) : filtered.length === 0 ? (
+            <li className="px-3 py-2.5 text-sm text-[#64748b]">검색 결과가 없습니다.</li>
+          ) : (
+            filtered.map((church) => {
+              const selected = selectedId === church.id;
+              return (
+                <li key={church.id} role="option" aria-selected={selected}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-[#eff6ff]",
+                      selected ? "bg-[#eff6ff]" : "bg-white",
+                    )}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onSelect(church);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <span className="text-sm font-semibold text-ink">{church.name}</span>
+                    <span className="text-xs text-[#64748b]">
+                      {church.region}
+                      {church.branchCode ? ` · ${church.branchCode}` : ""}
+                      {church.assigner ? ` · ${church.assigner}` : ""}
+                    </span>
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      ) : null}
+      {error ? (
+        <p className="mt-1 text-xs text-red">{error}</p>
+      ) : selectedId ? (
+        <p className="mt-1 text-2xl text-green">중앙이 선택되었습니다.</p>
+      ) : (
+        <p className="mt-1 text-xs text-[#64748b]">
+          키워드를 입력해 중앙을 검색한 뒤 목록에서 선택해 주세요.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function MemberSignupPage() {
   const router = useRouter();
   const [fullname, setFullname] = useState("");
-  const [username, setUsername] = useState("");
+  const [churchQuery, setChurchQuery] = useState("");
+  const [churchId, setChurchId] = useState<number | null>(null);
+  const [churches, setChurches] = useState<ChurchOption[]>([]);
+  const [isChurchesLoading, setIsChurchesLoading] = useState(true);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -87,8 +241,8 @@ export default function MemberSignupPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [usernameCheck, setUsernameCheck] = useState<{
-    status: UsernameCheckStatus;
+  const [phoneCheck, setPhoneCheck] = useState<{
+    status: PhoneCheckStatus;
     message: string;
     checkedValue: string;
   }>({
@@ -98,50 +252,92 @@ export default function MemberSignupPage() {
   });
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verifiedPhone, setVerifiedPhone] = useState("");
+  const [smsCode, setSmsCode] = useState("");
+  const [smsSent, setSmsSent] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
   const [isPhoneVerifying, setIsPhoneVerifying] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isEmailVerifying, setIsEmailVerifying] = useState(false);
+  const [emailCheck, setEmailCheck] = useState<{
+    status: EmailCheckStatus;
+    message: string;
+  }>({
+    status: "idle",
+    message: "",
+  });
 
-  const normalizedUsername = username.trim().toLowerCase();
+  const usernameFromPhone = phoneToUsername(phone);
   const normalizedEmail = email.trim();
   const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
   const isPhoneVerified =
     phoneVerified && verifiedPhone === phone && /^01[016789]-\d{4}-\d{4}$/.test(phone);
+  const isPhoneAvailable =
+    phoneCheck.status === "available" && phoneCheck.checkedValue === usernameFromPhone;
   const isEmailVerified =
     normalizedEmail.length === 0 ||
     (emailVerified && verifiedEmail === normalizedEmail && isValidEmailFormat);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadChurches = async () => {
+      setIsChurchesLoading(true);
+      try {
+        const response = await apiFetch("/api/churches");
+        const data = (await response.json()) as ChurchOption[] | { message?: string };
+        if (!response.ok || !Array.isArray(data) || cancelled) {
+          return;
+        }
+        setChurches(data);
+      } catch {
+        // Leave empty; user will see no results until retry/refresh.
+      } finally {
+        if (!cancelled) {
+          setIsChurchesLoading(false);
+        }
+      }
+    };
+
+    void loadChurches();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const canSubmit = useMemo(() => {
     return (
       fullname.trim().length > 0 &&
-      username.trim().length > 0 &&
+      churchId != null &&
       isPhoneVerified &&
+      isPhoneAvailable &&
       isEmailVerified &&
       password.length > 0 &&
-      passwordConfirm.length > 0 &&
-      usernameCheck.status === "available" &&
-      usernameCheck.checkedValue === normalizedUsername
+      passwordConfirm.length > 0
     );
   }, [
     fullname,
-    username,
+    churchId,
     isPhoneVerified,
+    isPhoneAvailable,
     isEmailVerified,
     password,
     passwordConfirm,
-    usernameCheck,
-    normalizedUsername,
   ]);
 
-  const handleUsernameChange = (value: string) => {
-    setUsername(value);
-    setUsernameCheck({
-      status: "idle",
-      message: "",
-      checkedValue: "",
-    });
-    setErrors((current) => ({ ...current, username: undefined }));
+  const handleChurchQueryChange = (value: string) => {
+    setChurchQuery(value);
+    setChurchId(null);
+    setErrors((current) => ({ ...current, church: undefined }));
+  };
+
+  const handleChurchSelect = (church: ChurchOption) => {
+    setChurchQuery(church.name);
+    setChurchId(church.id);
+    setErrors((current) => ({ ...current, church: undefined }));
   };
 
   const handlePhoneChange = (value: string) => {
@@ -151,6 +347,15 @@ export default function MemberSignupPage() {
       setPhoneVerified(false);
       setVerifiedPhone("");
     }
+    if (smsSent || smsCode) {
+      setSmsSent(false);
+      setSmsCode("");
+    }
+    setPhoneCheck({
+      status: "idle",
+      message: "",
+      checkedValue: "",
+    });
     setErrors((current) => ({ ...current, phone: undefined }));
   };
 
@@ -160,10 +365,15 @@ export default function MemberSignupPage() {
       setEmailVerified(false);
       setVerifiedEmail("");
     }
+    if (emailSent || emailCode) {
+      setEmailSent(false);
+      setEmailCode("");
+    }
+    setEmailCheck({ status: "idle", message: "" });
     setErrors((current) => ({ ...current, email: undefined }));
   };
 
-  const handleVerifyPhone = async () => {
+  const handleSendSmsCode = async () => {
     if (!/^01[016789]-\d{4}-\d{4}$/.test(phone)) {
       setErrors((current) => ({
         ...current,
@@ -171,21 +381,171 @@ export default function MemberSignupPage() {
       }));
       setPhoneVerified(false);
       setVerifiedPhone("");
+      setSmsSent(false);
+      setSmsCode("");
+      setPhoneCheck({ status: "idle", message: "", checkedValue: "" });
       return;
     }
 
+    setIsSendingSms(true);
+    setErrors((current) => ({ ...current, phone: undefined }));
+    setPhoneVerified(false);
+    setVerifiedPhone("");
+    setPhoneCheck({ status: "idle", message: "", checkedValue: "" });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/sms/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = (await response.json()) as { message?: string };
+
+      if (!response.ok) {
+        setSmsSent(false);
+        setSmsCode("");
+        setErrors((current) => ({
+          ...current,
+          phone: data.message ?? "인증번호 발송에 실패했습니다.",
+        }));
+        return;
+      }
+
+      setSmsSent(true);
+      setSmsCode("");
+      setPhoneCheck({
+        status: "checking",
+        message: data.message ?? "인증번호가 발송되었습니다.",
+        checkedValue: "",
+      });
+    } catch {
+      setSmsSent(false);
+      setSmsCode("");
+      setErrors((current) => ({
+        ...current,
+        phone: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      }));
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
+  const handleVerifySmsCode = async () => {
+    if (!/^01[016789]-\d{4}-\d{4}$/.test(phone)) {
+      setErrors((current) => ({
+        ...current,
+        phone: "연락처는 010-1234-5678 형식으로 입력해 주세요.",
+      }));
+      return;
+    }
+
+    if (!/^\d{6}$/.test(smsCode)) {
+      setErrors((current) => ({
+        ...current,
+        phone: "6자리 인증번호를 입력해 주세요.",
+      }));
+      return;
+    }
+
+    const nextUsername = phoneToUsername(phone);
     setIsPhoneVerifying(true);
     setErrors((current) => ({ ...current, phone: undefined }));
 
-    // Temporary mock verification until SMS API is connected.
-    await new Promise((resolve) => window.setTimeout(resolve, 500));
+    try {
+      const verifyResponse = await fetch(`${API_BASE_URL}/api/auth/sms/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code: smsCode }),
+      });
+      const verifyData = (await verifyResponse.json()) as {
+        verified?: boolean;
+        message?: string;
+      };
 
-    setPhoneVerified(true);
-    setVerifiedPhone(phone);
-    setIsPhoneVerifying(false);
+      if (!verifyResponse.ok || !verifyData.verified) {
+        setPhoneVerified(false);
+        setVerifiedPhone("");
+        setPhoneCheck({
+          status: "error",
+          message: verifyData.message ?? "인증번호 확인에 실패했습니다.",
+          checkedValue: "",
+        });
+        setErrors((current) => ({
+          ...current,
+          phone: verifyData.message ?? "인증번호 확인에 실패했습니다.",
+        }));
+        return;
+      }
+
+      setPhoneCheck({
+        status: "checking",
+        message: "연락처 중복 확인 중...",
+        checkedValue: nextUsername,
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/members/check-username?username=${encodeURIComponent(nextUsername)}`,
+      );
+      const data = (await response.json()) as {
+        available?: boolean;
+        message?: string;
+      };
+
+      if (!response.ok) {
+        setPhoneVerified(false);
+        setVerifiedPhone("");
+        setPhoneCheck({
+          status: "error",
+          message: data.message ?? "연락처 중복 확인에 실패했습니다.",
+          checkedValue: nextUsername,
+        });
+        setErrors((current) => ({
+          ...current,
+          phone: data.message ?? "연락처 중복 확인에 실패했습니다.",
+        }));
+        return;
+      }
+
+      if (!data.available) {
+        setPhoneVerified(false);
+        setVerifiedPhone("");
+        setPhoneCheck({
+          status: "unavailable",
+          message: "이미 가입된 연락처입니다.",
+          checkedValue: nextUsername,
+        });
+        setErrors((current) => ({
+          ...current,
+          phone: "이미 가입된 연락처입니다.",
+        }));
+        return;
+      }
+
+      setPhoneVerified(true);
+      setVerifiedPhone(phone);
+      setPhoneCheck({
+        status: "available",
+        message: "사용 가능한 연락처입니다. (로그인 아이디로 사용됩니다)",
+        checkedValue: nextUsername,
+      });
+    } catch {
+      setPhoneVerified(false);
+      setVerifiedPhone("");
+      setPhoneCheck({
+        status: "error",
+        message: "연락처 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        checkedValue: nextUsername,
+      });
+      setErrors((current) => ({
+        ...current,
+        phone: "연락처 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      }));
+    } finally {
+      setIsPhoneVerifying(false);
+    }
   };
 
-  const handleVerifyEmail = async () => {
+  const handleSendEmailCode = async () => {
     if (!normalizedEmail) {
       setErrors((current) => ({
         ...current,
@@ -193,6 +553,9 @@ export default function MemberSignupPage() {
       }));
       setEmailVerified(false);
       setVerifiedEmail("");
+      setEmailSent(false);
+      setEmailCode("");
+      setEmailCheck({ status: "idle", message: "" });
       return;
     }
 
@@ -203,88 +566,126 @@ export default function MemberSignupPage() {
       }));
       setEmailVerified(false);
       setVerifiedEmail("");
+      setEmailSent(false);
+      setEmailCode("");
+      setEmailCheck({ status: "idle", message: "" });
+      return;
+    }
+
+    setIsSendingEmail(true);
+    setErrors((current) => ({ ...current, email: undefined }));
+    setEmailVerified(false);
+    setVerifiedEmail("");
+    setEmailCheck({ status: "idle", message: "" });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+      const data = (await response.json()) as { message?: string };
+
+      if (!response.ok) {
+        setEmailSent(false);
+        setEmailCode("");
+        setErrors((current) => ({
+          ...current,
+          email: data.message ?? "인증번호 발송에 실패했습니다.",
+        }));
+        return;
+      }
+
+      setEmailSent(true);
+      setEmailCode("");
+      setEmailCheck({
+        status: "checking",
+        message: data.message ?? "이메일로 인증번호가 발송되었습니다.",
+      });
+    } catch {
+      setEmailSent(false);
+      setEmailCode("");
+      setErrors((current) => ({
+        ...current,
+        email: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      }));
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleVerifyEmailCode = async () => {
+    if (!normalizedEmail) {
+      setErrors((current) => ({
+        ...current,
+        email: "이메일을 입력해 주세요.",
+      }));
+      return;
+    }
+
+    if (!isValidEmailFormat) {
+      setErrors((current) => ({
+        ...current,
+        email: "올바른 이메일 형식이 아닙니다.",
+      }));
+      return;
+    }
+
+    if (!/^\d{6}$/.test(emailCode)) {
+      setErrors((current) => ({
+        ...current,
+        email: "6자리 인증번호를 입력해 주세요.",
+      }));
       return;
     }
 
     setIsEmailVerifying(true);
     setErrors((current) => ({ ...current, email: undefined }));
 
-    // Temporary mock verification until email API is connected.
-    await new Promise((resolve) => window.setTimeout(resolve, 500));
-
-    setEmailVerified(true);
-    setVerifiedEmail(normalizedEmail);
-    setIsEmailVerifying(false);
-  };
-
-  const handleCheckUsername = async () => {
-    const nextUsername = username.trim().toLowerCase();
-
-    if (!nextUsername) {
-      setErrors((current) => ({
-        ...current,
-        username: "아이디를 입력해 주세요.",
-      }));
-      return;
-    }
-
-    if (!/^[a-z0-9]{4,20}$/.test(nextUsername)) {
-      setErrors((current) => ({
-        ...current,
-        username: "아이디는 영문 소문자와 숫자 4~20자로 입력해 주세요.",
-      }));
-      setUsernameCheck({
-        status: "unavailable",
-        message: "아이디는 영문 소문자와 숫자 4~20자로 입력해 주세요.",
-        checkedValue: nextUsername,
-      });
-      return;
-    }
-
-    setUsernameCheck({
-      status: "checking",
-      message: "중복 확인 중...",
-      checkedValue: nextUsername,
-    });
-
     try {
-      const response = await fetch(
-        `/api/members/check-username?username=${encodeURIComponent(nextUsername)}`,
-      );
+      const response = await fetch(`${API_BASE_URL}/api/auth/email/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail, code: emailCode }),
+      });
       const data = (await response.json()) as {
-        available?: boolean;
+        verified?: boolean;
         message?: string;
       };
 
-      if (!response.ok) {
-        setUsernameCheck({
+      if (!response.ok || !data.verified) {
+        setEmailVerified(false);
+        setVerifiedEmail("");
+        setEmailCheck({
           status: "error",
-          message: data.message ?? "아이디 중복 확인에 실패했습니다.",
-          checkedValue: nextUsername,
+          message: data.message ?? "인증번호 확인에 실패했습니다.",
         });
+        setErrors((current) => ({
+          ...current,
+          email: data.message ?? "인증번호 확인에 실패했습니다.",
+        }));
         return;
       }
 
-      setUsernameCheck({
-        status: data.available ? "available" : "unavailable",
-        message: data.message ?? "",
-        checkedValue: nextUsername,
+      setEmailVerified(true);
+      setVerifiedEmail(normalizedEmail);
+      setEmailCheck({
+        status: "available",
+        message: data.message ?? "이메일 인증이 완료되었습니다.",
       });
-
-      if (!data.available) {
-        setErrors((current) => ({
-          ...current,
-          username: data.message ?? "이미 사용 중인 아이디입니다.",
-        }));
-      } else {
-        setErrors((current) => ({ ...current, username: undefined }));
-      }
     } catch {
-      setUsernameCheck({
+      setEmailVerified(false);
+      setVerifiedEmail("");
+      setEmailCheck({
         status: "error",
-        message: "아이디 중복 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-        checkedValue: nextUsername,
+        message: "이메일 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       });
+      setErrors((current) => ({
+        ...current,
+        email: "이메일 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      }));
+    } finally {
+      setIsEmailVerifying(false);
     }
   };
 
@@ -294,22 +695,17 @@ export default function MemberSignupPage() {
 
     const nextErrors = validateClientForm({
       fullname,
-      username,
+      churchId,
       phone,
       email,
       password,
       passwordConfirm,
     });
 
-    if (
-      usernameCheck.status !== "available" ||
-      usernameCheck.checkedValue !== normalizedUsername
-    ) {
-      nextErrors.username = "아이디 중복 확인을 진행해 주세요.";
-    }
-
     if (!isPhoneVerified) {
       nextErrors.phone = "휴대폰 인증을 완료해 주세요.";
+    } else if (!isPhoneAvailable) {
+      nextErrors.phone = "연락처 중복 확인을 완료해 주세요.";
     }
 
     if (normalizedEmail && !isEmailVerified) {
@@ -324,45 +720,48 @@ export default function MemberSignupPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/members", {
+      const response = await fetch(`${API_BASE_URL}/api/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullname: fullname.trim(),
-          username: normalizedUsername,
+          username: usernameFromPhone,
           phone: phone.trim(),
           email: email.trim() || undefined,
           password,
+          churchId,
         }),
       });
 
       const data = (await response.json()) as {
         message?: string;
-        errors?: FieldErrors;
+        errors?: FieldErrors & { username?: string; churchId?: string };
         user?: { username: string; fullname: string };
       };
 
       if (!response.ok) {
-        setErrors(data.errors ?? {});
-        setFormError(data.message ?? "회원가입에 실패했습니다.");
-
+        const serverErrors: FieldErrors = { ...(data.errors ?? {}) };
         if (data.errors?.username) {
-          setUsernameCheck({
+          serverErrors.phone =
+            data.errors.username === "이미 사용 중인 아이디입니다."
+              ? "이미 가입된 연락처입니다."
+              : data.errors.username;
+          setPhoneCheck({
             status: "unavailable",
-            message: data.errors.username,
-            checkedValue: normalizedUsername,
+            message: serverErrors.phone ?? "이미 가입된 연락처입니다.",
+            checkedValue: usernameFromPhone,
           });
+          setPhoneVerified(false);
+          setVerifiedPhone("");
+        }
+        if (data.errors?.churchId) {
+          serverErrors.church = data.errors.churchId;
         }
 
+        setErrors(serverErrors);
+        setFormError(data.message ?? "회원가입에 실패했습니다.");
         return;
       }
-
-      registerLocalMember({
-        username: normalizedUsername,
-        password,
-        name: fullname.trim(),
-        phone: phone.trim(),
-      });
 
       router.push("/login?signup=success");
     } catch {
@@ -374,7 +773,7 @@ export default function MemberSignupPage() {
 
   return (
     <main className="min-h-screen bg-[#e9edf3] px-4 py-8 min-[745px]:px-6 min-[745px]:py-10">
-      <div className="mx-auto w-full max-w-lg rounded-[10px] border border-[#cbd3df] bg-white px-5 py-7 shadow-[0_14px_34px_rgba(18,38,63,0.08)] min-[745px]:px-8">
+      <div className="mx-auto w-full max-w-2xl rounded-[10px] border border-[#cbd3df] bg-white px-5 py-7 shadow-[0_14px_34px_rgba(18,38,63,0.08)] min-[745px]:px-8">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-semibold text-ink">소비조합원 가입</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -383,72 +782,33 @@ export default function MemberSignupPage() {
         </div>
 
         <form className="space-y-4" noValidate onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="username" className="mb-1.5 block text-xs text-[#475569]">
-              아이디 (필수)
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(event) => handleUsernameChange(event.target.value)}
-                placeholder="영문/숫자 4~20자"
-                autoComplete="username"
-                className={cn(
-                  "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-sm text-ink",
-                  "placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
-                  errors.username ? "border-red" : "",
-                )}
-                aria-invalid={errors.username ? true : undefined}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0"
-                onClick={handleCheckUsername}
-                disabled={usernameCheck.status === "checking"}
-              >
-                {usernameCheck.status === "checking" ? "확인 중" : "중복확인"}
-              </Button>
-            </div>
-            {errors.username ? (
-              <p className="mt-1 text-xs text-red">{errors.username}</p>
-            ) : usernameCheck.message ? (
-              <p
-                className={cn(
-                  "mt-1 text-xs",
-                  usernameCheck.status === "available"
-                    ? "text-green"
-                    : usernameCheck.status === "checking"
-                      ? "text-[#64748b]"
-                      : "text-red",
-                )}
-              >
-                {usernameCheck.message}
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-[#64748b]">
-                영문 소문자와 숫자만 사용 가능합니다.
-              </p>
-            )}
+          <div className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2">
+            <Input
+              id="fullname"
+              label="이름 (필수)"
+              value={fullname}
+              onChange={(event) => {
+                setFullname(event.target.value);
+                setErrors((current) => ({ ...current, fullname: undefined }));
+              }}
+              placeholder="홍길동"
+              autoComplete="name"
+              error={errors.fullname}
+            />
+
+            <ChurchSearchField
+              churches={churches}
+              isLoading={isChurchesLoading}
+              query={churchQuery}
+              selectedId={churchId}
+              error={errors.church}
+              onQueryChange={handleChurchQueryChange}
+              onSelect={handleChurchSelect}
+            />
           </div>
 
-          <Input
-            id="fullname"
-            label="이름 (필수)"
-            value={fullname}
-            onChange={(event) => {
-              setFullname(event.target.value);
-              setErrors((current) => ({ ...current, fullname: undefined }));
-            }}
-            placeholder="홍길동"
-            autoComplete="name"
-            error={errors.fullname}
-          />
-
           <div>
-            <label htmlFor="phone" className="mb-1.5 block text-xs text-[#475569]">
+            <label htmlFor="phone" className="mb-1.5 block text-2xl font-bold text-ink">
               연락처 (필수)
             </label>
             <div className="flex gap-2">
@@ -463,7 +823,7 @@ export default function MemberSignupPage() {
                 maxLength={13}
                 pattern="01[016789]-[0-9]{4}-[0-9]{4}"
                 className={cn(
-                  "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-sm text-ink",
+                  "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-lg text-ink",
                   "placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
                   errors.phone ? "border-red" : "",
                 )}
@@ -472,35 +832,87 @@ export default function MemberSignupPage() {
               <Button
                 type="button"
                 variant="outline"
-                className={cn(
-                  "shrink-0",
-                  isPhoneVerified &&
-                    "border-green bg-[#e8f8ef] text-green hover:bg-[#e8f8ef]",
-                )}
-                onClick={handleVerifyPhone}
-                disabled={isPhoneVerifying || isPhoneVerified}
+                className="shrink-0"
+                onClick={handleSendSmsCode}
+                disabled={
+                  isSendingSms ||
+                  isPhoneVerifying ||
+                  (isPhoneVerified && isPhoneAvailable)
+                }
               >
-                {isPhoneVerifying
-                  ? "인증 중"
-                  : isPhoneVerified
-                    ? "휴대폰인증✔"
-                    : "휴대폰인증"}
+                {isSendingSms ? "발송 중" : smsSent ? "재발송" : "인증번호 발송"}
               </Button>
             </div>
+            {smsSent && !(isPhoneVerified && isPhoneAvailable) ? (
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="smsCode"
+                  type="text"
+                  value={smsCode}
+                  onChange={(event) => {
+                    setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                    setErrors((current) => ({ ...current, phone: undefined }));
+                  }}
+                  placeholder="6자리 인증번호"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className={cn(
+                    "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-lg text-ink",
+                    "placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
+                    errors.phone ? "border-red" : "",
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "shrink-0",
+                    isPhoneVerified &&
+                      isPhoneAvailable &&
+                      "border-green bg-[#e8f8ef] text-green hover:bg-[#e8f8ef]",
+                  )}
+                  onClick={handleVerifySmsCode}
+                  disabled={isPhoneVerifying || smsCode.length !== 6}
+                >
+                  {isPhoneVerifying
+                    ? "인증 중"
+                    : isPhoneVerified && isPhoneAvailable
+                      ? "휴대폰인증✔"
+                      : "인증 확인"}
+                </Button>
+              </div>
+            ) : null}
             {errors.phone ? (
-              <p className="mt-1 text-xs text-red">{errors.phone}</p>
-            ) : isPhoneVerified ? (
-              <p className="mt-1 text-xs text-green">휴대폰 인증이 완료되었습니다.</p>
+              <p className="mt-1 text-2xl text-red">{errors.phone}</p>
+            ) : isPhoneVerified && isPhoneAvailable ? (
+              <p className="mt-1 text-2xl text-green">
+                휴대폰 인증이 완료되었습니다.{" "}
+                <span className="font-bold">로그인 아이디: {usernameFromPhone}</span>
+              </p>
+            ) : phoneCheck.message ? (
+              <p
+                className={cn(
+                  "mt-1 text-2xl",
+                  phoneCheck.status === "available"
+                    ? "text-green"
+                    : phoneCheck.status === "checking"
+                      ? "text-[#64748b]"
+                      : "text-red",
+                )}
+              >
+                {phoneCheck.message}
+              </p>
             ) : (
-              <p className="mt-1 text-xs text-[#64748b]">
-                010-1234-5678 형식으로 입력 후 인증해 주세요.
+              <p className="mt-1 text-2xl text-[#64748b]">
+                010-1234-5678 형식으로 입력해 주세요. 숫자만 남겨 로그인 아이디로
+                사용됩니다. (예: 01012345678)
               </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-xs text-[#475569]">
-              이메일 (선택):권장사항-신앙촌 제품 뉴스레터 발송
+            <label htmlFor="email" className="mb-1.5 block text-2xl font-bold text-ink">
+              이메일 (선택):권장사항-제품 뉴스레터 발송
             </label>
             <div className="flex gap-2">
               <input
@@ -511,7 +923,7 @@ export default function MemberSignupPage() {
                 placeholder="name@example.com"
                 autoComplete="email"
                 className={cn(
-                  "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-sm text-ink",
+                  "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-lg text-ink",
                   "placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
                   errors.email ? "border-red" : "",
                 )}
@@ -520,32 +932,85 @@ export default function MemberSignupPage() {
               <Button
                 type="button"
                 variant="outline"
-                className={cn(
-                  "shrink-0",
-                  emailVerified &&
-                    verifiedEmail === normalizedEmail &&
-                    "border-green bg-[#e8f8ef] text-green hover:bg-[#e8f8ef]",
-                )}
-                onClick={handleVerifyEmail}
+                className="shrink-0"
+                onClick={handleSendEmailCode}
                 disabled={
+                  isSendingEmail ||
                   isEmailVerifying ||
                   (emailVerified && verifiedEmail === normalizedEmail) ||
                   !normalizedEmail
                 }
               >
-                {isEmailVerifying
-                  ? "인증 중"
-                  : emailVerified && verifiedEmail === normalizedEmail
-                    ? "이메일인증✔"
-                    : "이메일인증"}
+                {isSendingEmail
+                  ? "발송 중"
+                  : emailSent
+                    ? "재발송"
+                    : "인증번호 발송"}
               </Button>
             </div>
+            {emailSent &&
+            !(emailVerified && verifiedEmail === normalizedEmail) ? (
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="emailCode"
+                  type="text"
+                  value={emailCode}
+                  onChange={(event) => {
+                    setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                    setErrors((current) => ({ ...current, email: undefined }));
+                  }}
+                  placeholder="6자리 인증번호"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className={cn(
+                    "min-h-9 w-full rounded-[7px] border border-[#cbd5e1] bg-white px-2.5 py-2 text-lg text-ink",
+                    "placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
+                    errors.email ? "border-red" : "",
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "shrink-0",
+                    emailVerified &&
+                      verifiedEmail === normalizedEmail &&
+                      "border-green bg-[#e8f8ef] text-green hover:bg-[#e8f8ef]",
+                  )}
+                  onClick={handleVerifyEmailCode}
+                  disabled={
+                    isEmailVerifying ||
+                    emailCode.length !== 6 ||
+                    (emailVerified && verifiedEmail === normalizedEmail)
+                  }
+                >
+                  {isEmailVerifying
+                    ? "인증 중"
+                    : emailVerified && verifiedEmail === normalizedEmail
+                      ? "이메일인증✔"
+                      : "인증 확인"}
+                </Button>
+              </div>
+            ) : null}
             {errors.email ? (
-              <p className="mt-1 text-xs text-red">{errors.email}</p>
+              <p className="mt-1 text-2xl text-red">{errors.email}</p>
             ) : emailVerified && verifiedEmail === normalizedEmail ? (
-              <p className="mt-1 text-xs text-green">이메일 인증이 완료되었습니다.</p>
+              <p className="mt-1 text-2xl text-green">이메일 인증이 완료되었습니다.</p>
+            ) : emailCheck.message ? (
+              <p
+                className={cn(
+                  "mt-1 text-2xl",
+                  emailCheck.status === "available"
+                    ? "text-green"
+                    : emailCheck.status === "checking"
+                      ? "text-[#64748b]"
+                      : "text-red",
+                )}
+              >
+                {emailCheck.message}
+              </p>
             ) : (
-              <p className="mt-1 text-xs text-[#64748b]">
+              <p className="mt-1 text-2xl text-[#64748b]">
                 이메일을 입력한 경우 인증을 완료해 주세요. (미입력 시 생략 가능)
               </p>
             )}

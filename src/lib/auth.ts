@@ -1,4 +1,5 @@
-export type UserRole = "admin" | "member";
+export type UserRole = "admin" | "member" | "factory";
+export type AdminRegion = "JUNGBU" | "NAMBU" | "SEOBU";
 
 export interface AuthUser {
   username: string;
@@ -6,152 +7,110 @@ export interface AuthUser {
   name: string;
   id?: number;
   phone?: string;
-}
-
-interface LocalMemberAccount {
-  username: string;
-  password: string;
-  name: string;
-  phone?: string;
+  adminRegion?: AdminRegion | null;
+  isSuperAdmin?: boolean;
 }
 
 const AUTH_STORAGE_KEY = "sanc-logistics-auth";
-const LOCAL_MEMBERS_KEY = "sanc-logistics-local-members";
+const TOKEN_STORAGE_KEY = "sanc-logistics-access-token";
 
-/** Temporary local accounts until API auth is ready. */
-const TEMP_USERS: Array<AuthUser & { password: string }> = [
-  {
-    username: "admin",
-    password: "admin",
-    role: "admin",
-    name: "관리자",
-    phone: "",
-  },
-  {
-    username: "leesh01",
-    password: "leesh01",
-    role: "member",
-    name: "이순희",
-    phone: "010-1234-5678",
-  },
-  {
-    username: "kimjm02",
-    password: "kimjm02",
-    role: "member",
-    name: "김주문",
-    phone: "010-2222-3333",
-  },
-  {
-    username: "parkbn03",
-    password: "parkbn03",
-    role: "member",
-    name: "박보내",
-    phone: "010-3333-4444",
-  },
-  {
-    username: "choijs04",
-    password: "choijs04",
-    role: "member",
-    name: "최접수",
-    phone: "010-4444-5555",
-  },
-  {
-    username: "jungjm05",
-    password: "jungjm05",
-    role: "member",
-    name: "정주문",
-    phone: "010-5555-6666",
-  },
-  {
-    username: "hanbs06",
-    password: "hanbs06",
-    role: "member",
-    name: "한배송",
-    phone: "010-6666-7777",
-  },
-];
-
-function getLocalMembers(): LocalMemberAccount[] {
-  if (typeof window === "undefined") {
-    return [];
+export function normalizeUserRole(role: string | undefined | null): UserRole {
+  if (role === "ADMIN" || role === "admin") {
+    return "admin";
   }
-
-  const raw = window.localStorage.getItem(LOCAL_MEMBERS_KEY);
-  if (!raw) {
-    return [];
+  if (role === "FACTORY" || role === "factory") {
+    return "factory";
   }
-
-  try {
-    const parsed = JSON.parse(raw) as LocalMemberAccount[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return "member";
 }
 
-export function registerLocalMember(member: LocalMemberAccount) {
-  if (typeof window === "undefined") {
-    return;
+export function normalizeAdminRegion(
+  value: string | null | undefined,
+): AdminRegion | null {
+  if (value === "JUNGBU" || value === "NAMBU" || value === "SEOBU") {
+    return value;
   }
+  return null;
+}
 
-  const username = member.username.trim().toLowerCase();
-  const nextMembers = getLocalMembers().filter((item) => item.username !== username);
-  nextMembers.push({
-    username,
-    password: member.password,
-    name: member.name.trim(),
-    phone: member.phone,
-  });
-  window.localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(nextMembers));
+export function formatAdminPrivilegeLabel(
+  adminRegion?: AdminRegion | null,
+  isSuperAdmin?: boolean,
+) {
+  if (isSuperAdmin || !adminRegion) {
+    return "최고관리자";
+  }
+  if (adminRegion === "NAMBU") {
+    return "남부(기장) 관리자";
+  }
+  if (adminRegion === "SEOBU") {
+    return "서부(소사) 관리자";
+  }
+  if (adminRegion === "JUNGBU") {
+    return "중부(덕소) 관리자";
+  }
+  return "최고관리자";
+}
+
+/** 사이드바 표시: `홍길동 - 중부(덕소) 관리자` / `최고관리자` */
+export function formatAdminSidebarTitle(user: AuthUser | null) {
+  if (!user) {
+    return "관리자";
+  }
+  const privilege = formatAdminPrivilegeLabel(
+    user.adminRegion,
+    user.isSuperAdmin,
+  );
+  if (privilege === "최고관리자") {
+    return "최고관리자";
+  }
+  const name = user.name?.trim();
+  if (!name) {
+    return privilege;
+  }
+  return `${name} - ${privilege}`;
+}
+
+/** 공장 화면 표시: `[공장관리자 - 홍길동]` */
+export function formatFactorySidebarTitle(user: AuthUser | null) {
+  const name = user?.name?.trim();
+  if (!name) {
+    return "[공장관리자]";
+  }
+  return `[공장관리자 - ${name}]`;
 }
 
 export function getHomePathForRole(role: UserRole) {
-  return role === "admin" ? "/admin/OrderManagement" : "/OrderManagement";
+  if (role === "admin") {
+    return "/admin/OrderManagement";
+  }
+  if (role === "factory") {
+    return "/factory/ShipmentManagement";
+  }
+  return "/OrderManagement";
 }
 
-export function authenticate(username: string, password: string): AuthUser | null {
-  const normalizedUsername = username.trim().toLowerCase();
-  const normalizedPassword = password.trim().toLowerCase();
-
-  const matchedTemp = TEMP_USERS.find(
-    (user) =>
-      user.username === normalizedUsername &&
-      user.password === normalizedPassword,
-  );
-
-  if (matchedTemp) {
-    return {
-      username: matchedTemp.username,
-      role: matchedTemp.role,
-      name: matchedTemp.name,
-      phone: matchedTemp.phone,
-    };
-  }
-
-  const matchedLocal = getLocalMembers().find(
-    (user) =>
-      user.username === normalizedUsername &&
-      user.password.toLowerCase() === normalizedPassword,
-  );
-
-  if (!matchedLocal) {
-    return null;
-  }
-
-  return {
-    username: matchedLocal.username,
-    role: "member",
-    name: matchedLocal.name,
-    phone: matchedLocal.phone,
-  };
-}
-
-export function saveAuthUser(user: AuthUser) {
+export function saveAuthUser(user: AuthUser, accessToken?: string) {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  const role = normalizeUserRole(user.role);
+  const adminRegion = normalizeAdminRegion(user.adminRegion);
+  window.sessionStorage.setItem(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({
+      ...user,
+      role,
+      adminRegion,
+      isSuperAdmin:
+        user.isSuperAdmin ?? (role === "admin" && adminRegion === null),
+    }),
+  );
+
+  if (accessToken) {
+    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+  }
 }
 
 export function getAuthUser(): AuthUser | null {
@@ -165,10 +124,27 @@ export function getAuthUser(): AuthUser | null {
   }
 
   try {
-    return JSON.parse(raw) as AuthUser;
+    const parsed = JSON.parse(raw) as AuthUser;
+    const role = normalizeUserRole(parsed.role);
+    const adminRegion = normalizeAdminRegion(parsed.adminRegion);
+    return {
+      ...parsed,
+      role,
+      adminRegion,
+      isSuperAdmin:
+        parsed.isSuperAdmin ?? (role === "admin" && adminRegion === null),
+    };
   } catch {
     return null;
   }
+}
+
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
 export function clearAuthUser() {
@@ -177,4 +153,5 @@ export function clearAuthUser() {
   }
 
   window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
 }

@@ -7,12 +7,12 @@ import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  authenticate,
   getAuthUser,
   getHomePathForRole,
   saveAuthUser,
   type AuthUser,
 } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/env";
 
 function LoginForm() {
   const router = useRouter();
@@ -36,7 +36,7 @@ function LoginForm() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -47,32 +47,18 @@ function LoginForm() {
 
       const data = (await response.json()) as {
         message?: string;
+        accessToken?: string;
         user?: AuthUser;
       };
 
-      if (response.ok && data.user) {
-        saveAuthUser(data.user);
+      if (response.ok && data.user && data.accessToken) {
+        saveAuthUser(data.user, data.accessToken);
         router.push(getHomePathForRole(data.user.role));
-        return;
-      }
-
-      // Fallback for temporary mock accounts (e.g. admin/admin) when not in DB.
-      const mockUser = authenticate(username, password);
-      if (mockUser) {
-        saveAuthUser(mockUser);
-        router.push(getHomePathForRole(mockUser.role));
         return;
       }
 
       setError(data.message ?? "아이디 또는 비밀번호가 올바르지 않습니다.");
     } catch {
-      const mockUser = authenticate(username, password);
-      if (mockUser) {
-        saveAuthUser(mockUser);
-        router.push(getHomePathForRole(mockUser.role));
-        return;
-      }
-
       setError("로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsSubmitting(false);
@@ -85,7 +71,7 @@ function LoginForm() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-ink">물류부 주문 관리 시스템</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            관리자 또는 개인회원 계정으로 로그인하세요.
+            관리자, 공장, 또는 개인회원 계정으로 로그인하세요.
           </p>
         </div>
 
@@ -98,12 +84,12 @@ function LoginForm() {
         <form className="flex w-full flex-col gap-5" noValidate onSubmit={handleSubmit}>
           <div className="flex flex-col gap-2">
             <label htmlFor="username" className="text-sm font-medium text-[#475569]">
-              아이디
+              아이디 (연락처)
             </label>
             <Input
               id="username"
               type="text"
-              placeholder="아이디를 입력해 주세요"
+              placeholder="01012345678"
               className="w-full"
               autoComplete="username"
               value={username}
@@ -141,21 +127,6 @@ function LoginForm() {
             {isSubmitting ? "로그인 중..." : "로그인"}
           </Button>
         </form>
-
-        <div className="w-full rounded-[7px] border border-line bg-[#f8fafc] px-3 py-3 text-xs text-[#64748b]">
-          <p className="font-semibold text-ink">계정 안내</p>
-          <p className="mt-1">가입 회원: DB 로그인 API 사용 (예: tenorseon)</p>
-          <p className="mt-2 font-semibold text-ink">임시 계정 (DB 미등록 시 fallback)</p>
-          <p className="mt-1">관리자: admin / admin</p>
-          <ul className="mt-1 space-y-0.5">
-            <li>이순희 — leesh01</li>
-            <li>김주문 — kimjm02</li>
-            <li>박보내 — parkbn03</li>
-            <li>최접수 — choijs04</li>
-            <li>정주문 — jungjm05</li>
-            <li>한배송 — hanbs06</li>
-          </ul>
-        </div>
 
         <p className="text-center text-xs text-[#64748b]">
           개인회원이시면 가입하기 버튼을 클릭하여 가입해 주세요.{" "}
