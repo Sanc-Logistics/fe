@@ -1,0 +1,1195 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>역할별 PC/모바일 화면 구성 - 제품주문, 인사장, 엑셀</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #64748b;
+      --line: #d8e0ea;
+      --soft: #f6f8fb;
+      --brand: #1d64d8;
+      --green: #16995f;
+      --yellow: #f2b620;
+      --purple: #7c3aed;
+      --red: #d54433;
+      --dark: #111827;
+      --panel: #ffffff;
+      --shadow: 0 14px 34px rgba(18, 38, 63, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef2f7;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 7px;
+      min-height: 35px;
+      padding: 7px 11px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    button.success { background: var(--green); border-color: var(--green); color: #fff; }
+    button.warn { background: #fff4de; border-color: #e8bd61; color: #664600; }
+    button.danger { background: #fff0ed; border-color: #efb2aa; color: #9f2519; }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 22px 28px 18px;
+    }
+
+    .top {
+      max-width: 1540px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    h1 {
+      margin: 0 0 5px;
+      font-size: 25px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .role-tabs, .mini-actions, .command-left, .command-right {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .role-tabs { justify-content: flex-end; }
+
+    .role-tabs button.active,
+    .seg-tabs span.active {
+      background: #e9f1ff;
+      border-color: #9bbcff;
+      color: var(--brand);
+      font-weight: 700;
+    }
+
+    main {
+      max-width: 1540px;
+      margin: 0 auto;
+      padding: 22px 26px 48px;
+    }
+
+    .command-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 13px;
+      box-shadow: var(--shadow);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #eff5ff;
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .upload-result {
+      min-height: 32px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+    }
+
+    .screen-grid {
+      display: grid;
+      grid-template-columns: minmax(720px, 1fr) 390px;
+      gap: 20px;
+      margin-top: 22px;
+      align-items: start;
+    }
+
+    .screen-block, .spec-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .block-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .block-title h2, .spec-card h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .desktop-stage {
+      height: 790px;
+      background: #e9edf3;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .desktop-app {
+      min-width: 1040px;
+      min-height: 730px;
+      background: #fff;
+      border: 1px solid #cbd3df;
+      border-radius: 10px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+    }
+
+    .pc-nav {
+      background: #1f2937;
+      color: #e5edf7;
+      padding: 18px 14px;
+    }
+
+    .pc-nav strong {
+      display: block;
+      margin-bottom: 18px;
+      font-size: 16px;
+    }
+
+    .pc-nav span {
+      display: block;
+      padding: 10px;
+      border-radius: 7px;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+
+    .pc-nav span.active {
+      background: #334155;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .pc-work {
+      padding: 18px;
+      background: #f7f9fc;
+      overflow: hidden;
+    }
+
+    .work-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .work-head h3 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .work-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .kpi {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px;
+    }
+
+    .kpi b {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 21px;
+    }
+
+    .kpi span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pc-columns {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(330px, .92fr);
+      gap: 14px;
+    }
+
+    .panel {
+      min-width: 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .panel h4 {
+      margin: 0 0 11px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .seg-tabs {
+      display: flex;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .seg-tabs span {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    label {
+      display: block;
+      color: #475569;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      min-height: 36px;
+      padding: 8px 9px;
+    }
+
+    textarea {
+      resize: none;
+      height: 74px;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .choice-grid span {
+      text-align: center;
+      padding: 9px 4px;
+      background: #fff;
+      border-right: 1px solid var(--line);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .choice-grid span:last-child { border-right: 0; }
+    .choice-grid span.active { background: #e9f1ff; color: var(--brand); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e5eaf0;
+      padding: 8px 7px;
+      text-align: left;
+      vertical-align: middle;
+      overflow-wrap: anywhere;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status.blue { background: #eaf2ff; color: var(--brand); }
+    .status.green { background: #e8f8ef; color: var(--green); }
+    .status.yellow { background: #fff5d6; color: #8a6100; }
+    .status.red { background: #fff0ed; color: var(--red); }
+    .status.purple { background: #f2eafe; color: var(--purple); }
+
+    .notice {
+      margin-top: 9px;
+      border: 1px solid #f0c15a;
+      border-radius: 7px;
+      background: #fff6dc;
+      color: #7a4e00;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    .preview-img {
+      width: 100%;
+      max-height: 210px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    .mobile-stage {
+      height: 790px;
+      background: #e9edf3;
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+    }
+
+    .phone {
+      width: 330px;
+      height: 720px;
+      background: #111827;
+      border-radius: 32px;
+      padding: 14px;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .22);
+    }
+
+    .phone-screen {
+      height: 100%;
+      background: #f8fafc;
+      border-radius: 22px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .m-head {
+      padding: 18px 16px 12px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .m-head h3 {
+      margin: 0 0 4px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .m-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .m-body {
+      flex: 1;
+      padding: 13px;
+      overflow: auto;
+    }
+
+    .m-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .m-card h4 {
+      margin: 0 0 7px;
+      font-size: 15px;
+    }
+
+    .m-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .m-row b { color: var(--ink); }
+
+    .m-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .m-actions button {
+      min-height: 34px;
+      padding: 7px 8px;
+      font-size: 12px;
+    }
+
+    .m-nav {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .m-nav span {
+      text-align: center;
+      color: var(--muted);
+      padding: 10px 2px;
+      font-size: 11px;
+    }
+
+    .m-nav span.active {
+      color: var(--brand);
+      font-weight: 700;
+    }
+
+    .spec-area {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .72fr);
+      gap: 20px;
+    }
+
+    .spec-card {
+      padding: 16px;
+      overflow: visible;
+    }
+
+    .upload-preview {
+      max-height: 250px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+
+    @media (max-width: 1180px) {
+      .screen-grid, .spec-area { grid-template-columns: 1fr; }
+      .desktop-stage { height: auto; max-height: 790px; }
+    }
+
+    @media (max-width: 720px) {
+      header { padding: 18px 15px; }
+      .top, .command-bar { align-items: stretch; flex-direction: column; }
+      .role-tabs, .command-left, .command-right { justify-content: flex-start; }
+      main { padding: 15px 12px 36px; }
+      .desktop-stage { padding: 10px; }
+      .desktop-app { min-width: 980px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="top">
+      <div>
+        <h1>역할별 PC / 휴대폰 화면 구성</h1>
+        <p>제품주문서, 인사장 작업의뢰, 공장자료, 엑셀 업로드/다운로드 화면 시안</p>
+      </div>
+      <div class="role-tabs" aria-label="역할 선택">
+        <button class="active" data-role="member">개인회원</button>
+        <button data-role="admin">관리자</button>
+        <button data-role="factory">공장</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="command-bar">
+      <div class="command-left">
+        <span class="badge" id="roleBadge">개인회원 화면</span>
+        <button class="primary" id="uploadButton">엑셀 업로드</button>
+        <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" hidden>
+        <button data-download="orders">주문마스터</button>
+        <button data-download="items">상품상세</button>
+        <button data-download="greetings">인사장 작업</button>
+        <button data-download="factory">공장자료</button>
+        <button data-download="template">업로드 양식</button>
+      </div>
+      <div class="command-right">
+        <div class="upload-result" id="uploadStatus">업로드 파일 대기</div>
+      </div>
+    </section>
+
+    <section class="screen-grid">
+      <div class="screen-block">
+        <div class="block-title">
+          <h2>PC 화면</h2>
+          <span class="badge">목록 / 작업관리 / 엑셀 / 출력</span>
+        </div>
+        <div class="desktop-stage">
+          <div id="pcScreen" class="desktop-app"></div>
+        </div>
+      </div>
+
+      <div class="screen-block">
+        <div class="block-title">
+          <h2>휴대폰 화면</h2>
+          <span class="badge">접수 / 상태 확인</span>
+        </div>
+        <div class="mobile-stage">
+          <div id="mobileScreen" class="phone"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="spec-area">
+      <div class="spec-card">
+        <h2 id="specTitle">개인회원 화면 구성</h2>
+        <div id="specTable"></div>
+      </div>
+      <div class="spec-card">
+        <h2>업로드 미리보기</h2>
+        <div id="uploadPreview" class="empty">CSV 파일을 업로드하면 상위 10행을 표시합니다. XLS/XLSX 파일은 실제 앱에서 서버 파싱 대상으로 접수됩니다.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      role: "member",
+      orders: [
+        { id: "ORD-202601-0001", member: "이순희", type: "택배", branch: "기장", phone: "010-1234-5678", status: "제작중", total: 500, date: "2026-01-10", ship: "2026-01-16", greeting: "연계" },
+        { id: "ORD-202601-0002", member: "김주문", type: "배달", branch: "소사", phone: "010-2222-3333", status: "관리자 확인중", total: 150, date: "2026-01-11", ship: "2026-01-18", greeting: "없음" },
+        { id: "GR-202601-0003", member: "박담당", type: "인사장만", branch: "덕소", phone: "010-3333-4444", status: "인사장 접수", total: 300, date: "2026-01-12", ship: "2026-01-17", greeting: "단독" }
+      ],
+      items: [
+        { id: "ORD-202601-0001", no: 1, product: "명진 1호", qty: 300, note: "개별택배", greeting: "1번 / 8칸" },
+        { id: "ORD-202601-0001", no: 2, product: "S5호", qty: 200, note: "개별택배", greeting: "1번 / 8칸" },
+        { id: "ORD-202601-0002", no: 1, product: "특선 세트", qty: 50, note: "배달 전 연락", greeting: "없음" }
+      ],
+      greetings: [
+        { id: "GR-202601-0001", orderId: "ORD-202601-0001", type: "제품주문 연계", name: "기장신앙촌 홍길동", phone: "010-1234-5678", no: "1", content: "신앙촌 새마을금고 본점", qty: 300, size: "8칸", product: "명진 1호", destination: "중부", due: "2026-01-16", note: "제품 안에 넣고 스티커 인사장 붙이기", status: "제작대기" },
+        { id: "GR-202601-0002", orderId: "", type: "인사장만", name: "서부 매장", phone: "010-7777-8888", no: "자체", content: "자체 인사장 내용", qty: 500, size: "6칸", product: "별도 제품 없음", destination: "서부", due: "2026-01-18", note: "스티커만 제작", status: "시안확인" }
+      ]
+    };
+
+    const roleMeta = {
+      member: {
+        label: "개인회원",
+        nav: ["제품주문서", "인사장", "내 주문 현황", "엑셀"],
+        spec: [
+          ["PC", "제품주문서", "상품별 주문수량과 인사장 연계 여부를 같이 작성"],
+          ["PC", "인사장 탭", "인사장번호, 내용, 수량, 크기, 받을 곳, 특이사항을 별도 입력"],
+          ["PC", "인사장만 작업의뢰", "제품 주문 없이 인사장 또는 인사스티커 제작만 접수"],
+          ["휴대폰", "인사장 접수", "제품주문 연계 또는 인사장만 의뢰를 선택해 접수"],
+          ["엑셀", "주문/인사장 업로드", "제품주문과 인사장 작업을 같은 파일 또는 분리 파일로 업로드"]
+        ]
+      },
+      admin: {
+        label: "관리자",
+        nav: ["주문 접수", "인사장 작업", "공장 공유", "엑셀", "기준정보"],
+        spec: [
+          ["PC", "주문 접수 관리", "제품 주문과 인사장 연계 여부를 함께 검토"],
+          ["PC", "인사장 작업 관리", "인사장번호, 크기, 수량, 시안상태, 제작상태를 별도 관리"],
+          ["PC", "공장자료 생성", "제품 작업자료와 인사장 제작자료를 공장에 분리 공유"],
+          ["휴대폰", "인사장 승인", "시안확인, 보완요청, 제작요청을 빠르게 처리"],
+          ["엑셀", "인사장 다운로드", "인사장 작업 목록과 공장 제작자료 다운로드"]
+        ]
+      },
+      factory: {
+        label: "공장",
+        nav: ["공유 주문", "인사장 제작", "출고 회신", "엑셀"],
+        spec: [
+          ["PC", "공유 주문현황", "관리자가 공유한 제품 주문만 확인"],
+          ["PC", "인사장 제작자료", "인사장번호, 내용, 크기, 수량, 제품명, 받을 곳 확인"],
+          ["PC", "제작 상태 회신", "시안확인, 제작중, 제작완료, 출고완료 상태 회신"],
+          ["휴대폰", "현장 작업 처리", "인사장 제작상태와 이슈를 간단히 입력"],
+          ["엑셀", "공장자료 다운로드", "제품 주문자료와 인사장 제작자료를 각각 다운로드"]
+        ]
+      }
+    };
+
+    const statusClass = {
+      "접수완료": "blue",
+      "관리자 확인중": "yellow",
+      "보완요청": "red",
+      "공장 공유완료": "purple",
+      "제작중": "purple",
+      "인사장 접수": "blue",
+      "제작대기": "yellow",
+      "시안확인": "purple",
+      "제작완료": "green",
+      "출고완료": "green"
+    };
+
+    function statusPill(status) {
+      return `<span class="status ${statusClass[status] || "blue"}">${status}</span>`;
+    }
+
+    function navHtml(role, activeIndex = 0) {
+      const meta = roleMeta[role];
+      return `
+        <aside class="pc-nav">
+          <strong>${meta.label}</strong>
+          ${meta.nav.map((name, index) => `<span class="${index === activeIndex ? "active" : ""}">${name}</span>`).join("")}
+        </aside>
+      `;
+    }
+
+    function greetingForm(compact = false) {
+      return `
+        <div class="seg-tabs">
+          <span class="active">제품주문 연계</span>
+          <span>인사장만 의뢰</span>
+        </div>
+        <div class="form-grid">
+          <div><label>소속, 이름</label><input value="기장신앙촌 홍길동"></div>
+          <div><label>연락처</label><input value="010-1234-5678"></div>
+        </div>
+        <label style="margin-top:10px">인사장번호</label>
+        <div class="choice-grid"><span class="active">1</span><span>2</span><span>3</span><span>4</span><span>자체</span></div>
+        <div class="form-grid">
+          <div><label>인사장내용</label><input value="신앙촌 새마을금고 본점"></div>
+          <div><label>수량</label><input value="300"></div>
+        </div>
+        <label style="margin-top:10px">크기</label>
+        <div class="choice-grid" style="grid-template-columns:repeat(3,1fr)"><span class="active">8칸</span><span>6칸</span><span>4칸</span></div>
+        <div class="form-grid">
+          <div><label>제품명</label><input value="명진 1호"></div>
+          <div><label>받을 곳 / 납기</label><input value="중부 / 2026-01-16"></div>
+        </div>
+        <label style="margin-top:10px">특이사항</label>
+        <textarea>${compact ? "스티커만 제작" : "제품 안에 넣고, 스티커 인사장 붙이기"}</textarea>
+        <div class="notice">기쁨1호, 특선1호는 세로형으로 제작됩니다. 해당 제품이면 제품명을 꼭 적어주세요.</div>
+      `;
+    }
+
+    function memberPc() {
+      const rows = state.orders.map(order => `
+        <tr><td>${order.id}</td><td>${order.type}</td><td>${order.greeting}</td><td>${statusPill(order.status)}</td><td>${order.total}</td><td><button>보기</button></td></tr>
+      `).join("");
+
+      return `
+        ${navHtml("member")}
+        <section class="pc-work">
+          <div class="work-head">
+            <div>
+              <h3>제품주문서 + 인사장 접수</h3>
+              <p>제품 주문에 인사장을 연결하거나, 인사장만 별도 작업의뢰할 수 있습니다.</p>
+            </div>
+            <div class="mini-actions">
+              <button class="primary">신규 주문</button>
+              <button class="success">인사장만 의뢰</button>
+              <button data-download="greetings">인사장 다운로드</button>
+              <button data-upload-trigger>엑셀 업로드</button>
+            </div>
+          </div>
+          <div class="pc-columns">
+            <div class="panel">
+              <div class="seg-tabs"><span class="active">제품주문서</span><span>인사장 탭</span><span>인사장만</span></div>
+              <h4>제품 주문</h4>
+              <div class="form-grid">
+                <div><label>주문구분</label><select><option>택배</option><option>배달</option></select></div>
+                <div><label>주문일자</label><input value="2026-01-10"></div>
+                <div><label>성명</label><input value="이순희"></div>
+                <div><label>연락처</label><input value="010-1234-5678"></div>
+              </div>
+              <table style="margin-top:12px">
+                <thead><tr><th>상품명</th><th>수량</th><th>요청사항</th><th>인사장</th></tr></thead>
+                <tbody>
+                  <tr><td>명진 1호</td><td>300</td><td>개별택배</td><td>${statusPill("제작대기")}</td></tr>
+                  <tr><td>S5호</td><td>200</td><td>개별택배</td><td>1번 / 8칸</td></tr>
+                </tbody>
+              </table>
+              <div class="mini-actions" style="margin-top:12px; justify-content:flex-start">
+                <button>상품 추가</button>
+                <button class="primary">인사장 작성</button>
+                <button class="success">접수하기</button>
+              </div>
+              <h4 style="margin-top:16px">내 주문 현황</h4>
+              <table>
+                <thead><tr><th>접수번호</th><th>구분</th><th>인사장</th><th>상태</th><th>수량</th><th>작업</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            <div class="panel">
+              <h4>인사장 작업의뢰</h4>
+              ${greetingForm()}
+              <div class="mini-actions" style="margin-top:12px; justify-content:flex-start">
+                <button class="primary">인사장 저장</button>
+                <button class="success">인사장만 접수</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function adminPc() {
+      const orderRows = state.orders.map(order => `
+        <tr><td>${order.id}</td><td>${order.member}</td><td>${order.type}</td><td>${order.greeting}</td><td>${statusPill(order.status)}</td><td><button>검토</button></td></tr>
+      `).join("");
+      const greetingRows = state.greetings.map(row => `
+        <tr><td>${row.id}</td><td>${row.type}</td><td>${row.name}</td><td>${row.no}</td><td>${row.qty}</td><td>${statusPill(row.status)}</td></tr>
+      `).join("");
+
+      return `
+        ${navHtml("admin", 1)}
+        <section class="pc-work">
+          <div class="work-head">
+            <div>
+              <h3>관리자 주문 / 인사장 작업 관리</h3>
+              <p>제품 주문과 분리된 인사장 작업 큐를 관리하고 공장자료로 공유합니다.</p>
+            </div>
+            <div class="mini-actions">
+              <button class="primary" data-upload-trigger>대량 엑셀 업로드</button>
+              <button data-download="orders">주문마스터</button>
+              <button data-download="greetings">인사장 작업</button>
+              <button data-download="factory">공장자료</button>
+            </div>
+          </div>
+          <div class="kpis">
+            <div class="kpi"><b>38</b><span>제품 주문</span></div>
+            <div class="kpi"><b>17</b><span>인사장 작업</span></div>
+            <div class="kpi"><b>6</b><span>인사장만</span></div>
+            <div class="kpi"><b>9</b><span>시안확인</span></div>
+          </div>
+          <div class="pc-columns">
+            <div class="panel">
+              <h4>접수 주문 목록</h4>
+              <table>
+                <thead><tr><th>접수번호</th><th>회원</th><th>구분</th><th>인사장</th><th>상태</th><th>작업</th></tr></thead>
+                <tbody>${orderRows}</tbody>
+              </table>
+              <h4 style="margin-top:16px">인사장 작업 큐</h4>
+              <table>
+                <thead><tr><th>작업번호</th><th>유형</th><th>소속/이름</th><th>번호</th><th>수량</th><th>상태</th></tr></thead>
+                <tbody>${greetingRows}</tbody>
+              </table>
+            </div>
+            <div class="panel">
+              <h4>인사장 상세 / 공장자료</h4>
+              ${greetingForm()}
+              <div class="mini-actions" style="margin-top:12px; justify-content:flex-start">
+                <button class="warn">보완요청</button>
+                <button class="success">시안 승인</button>
+                <button class="primary">공장 공유</button>
+                <button data-download="greetings">엑셀 출력</button>
+              </div>
+              <img class="preview-img" style="margin-top:12px" src="../주문서이미지.png" alt="주문서 미리보기">
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function factoryPc() {
+      const greetingRows = state.greetings.map(row => `
+        <tr><td>${row.id}</td><td>${row.type}</td><td>${row.no}</td><td>${row.size}</td><td>${row.qty}</td><td>${row.destination}</td><td>${statusPill(row.status)}</td></tr>
+      `).join("");
+
+      return `
+        ${navHtml("factory", 1)}
+        <section class="pc-work">
+          <div class="work-head">
+            <div>
+              <h3>공장자료 / 인사장 제작</h3>
+              <p>제품 주문자료와 인사장 제작자료를 분리 확인하고 제작상태를 회신합니다.</p>
+            </div>
+            <div class="mini-actions">
+              <button data-download="factory">공장자료 다운로드</button>
+              <button data-download="greetings">인사장 제작 다운로드</button>
+              <button class="success">처리결과 저장</button>
+            </div>
+          </div>
+          <div class="kpis">
+            <div class="kpi"><b>24</b><span>공유 주문</span></div>
+            <div class="kpi"><b>17</b><span>인사장 작업</span></div>
+            <div class="kpi"><b>9</b><span>시안확인</span></div>
+            <div class="kpi"><b>4</b><span>제작완료</span></div>
+          </div>
+          <div class="pc-columns">
+            <div class="panel">
+              <h4>인사장 제작자료</h4>
+              <table>
+                <thead><tr><th>작업번호</th><th>유형</th><th>번호</th><th>크기</th><th>수량</th><th>받을 곳</th><th>상태</th></tr></thead>
+                <tbody>${greetingRows}</tbody>
+              </table>
+              <h4 style="margin-top:16px">제품 주문자료</h4>
+              <table>
+                <thead><tr><th>주문번호</th><th>상품</th><th>수량</th><th>인사장</th></tr></thead>
+                <tbody>${state.items.map(item => `<tr><td>${item.id}</td><td>${item.product}</td><td>${item.qty}</td><td>${item.greeting}</td></tr>`).join("")}</tbody>
+              </table>
+            </div>
+            <div class="panel">
+              <h4>제작 회신</h4>
+              <div class="form-grid">
+                <div><label>작업번호</label><input value="GR-202601-0001"></div>
+                <div><label>제작상태</label><select><option>시안확인</option><option>제작중</option><option>제작완료</option><option>이슈발생</option></select></div>
+                <div><label>예상 완료일</label><input value="2026-01-16"></div>
+                <div><label>담당자</label><input value="공장 담당자"></div>
+              </div>
+              <label style="margin-top:10px">공장 회신 메모</label>
+              <textarea>8칸 스티커 인사장 300장 제작 대기. 자체 인사장 원고 확인 필요.</textarea>
+              <div class="mini-actions" style="margin-top:12px; justify-content:flex-start">
+                <button class="success">상태 회신</button>
+                <button class="warn">이슈 등록</button>
+                <button>시안 파일 보기</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function memberMobile() {
+      return phoneShell("개인회원", "주문 / 인사장", `
+        <div class="m-card">
+          <h4>접수 유형</h4>
+          <div class="m-row"><span>제품주문서</span><b>인사장 연계 가능</b></div>
+          <div class="m-row"><span>인사장만</span><b>별도 의뢰 가능</b></div>
+          <div class="m-actions">
+            <button class="primary">제품 주문</button>
+            <button class="success">인사장만</button>
+          </div>
+        </div>
+        <div class="m-card">
+          <h4>인사장 입력</h4>
+          <div class="m-row"><span>번호</span><b>1번</b></div>
+          <div class="m-row"><span>크기</span><b>8칸</b></div>
+          <div class="m-row"><span>수량</span><b>300</b></div>
+          <div class="m-row"><span>받을 곳</span><b>중부 / 2026-01-16</b></div>
+          <div class="m-actions">
+            <button>수정</button>
+            <button class="primary">접수</button>
+          </div>
+        </div>
+        <div class="m-card">
+          <h4>내 접수 현황</h4>
+          <div class="m-row"><span>GR-202601-0001</span>${statusPill("제작대기")}</div>
+          <div class="m-row"><span>ORD-202601-0001</span>${statusPill("제작중")}</div>
+        </div>
+      `, ["제품", "인사장", "현황", "내정보"]);
+    }
+
+    function adminMobile() {
+      return phoneShell("관리자", "인사장 관리", `
+        <div class="m-card">
+          <h4>인사장 검토</h4>
+          <div class="m-row"><span>GR-202601-0001</span><b>제품주문 연계</b></div>
+          <div class="m-row"><span>번호 / 크기</span><b>1번 / 8칸</b></div>
+          <div class="m-row"><span>상태</span>${statusPill("제작대기")}</div>
+          <div class="m-actions">
+            <button class="success">승인</button>
+            <button class="warn">보완</button>
+          </div>
+        </div>
+        <div class="m-card">
+          <h4>공장 공유</h4>
+          <div class="m-row"><span>인사장 작업</span><b>17건</b></div>
+          <div class="m-actions">
+            <button class="primary">공유</button>
+            <button data-download="greetings">엑셀</button>
+          </div>
+        </div>
+      `, ["주문", "인사장", "공유", "엑셀"]);
+    }
+
+    function factoryMobile() {
+      return phoneShell("공장", "인사장 제작", `
+        <div class="m-card">
+          <h4>오늘 작업</h4>
+          <div class="m-row"><span>GR-202601-0001</span><b>8칸 / 300장</b></div>
+          <div class="m-row"><span>내용</span><b>신앙촌 새마을금고 본점</b></div>
+          <div class="m-row"><span>상태</span>${statusPill("제작대기")}</div>
+          <div class="m-actions">
+            <button class="success">제작완료</button>
+            <button class="warn">이슈</button>
+          </div>
+        </div>
+        <div class="m-card">
+          <h4>자료</h4>
+          <div class="m-row"><span>공장자료</span><b>제품 + 인사장</b></div>
+          <div class="m-actions">
+            <button data-download="factory">공장자료</button>
+            <button data-download="greetings">인사장</button>
+          </div>
+        </div>
+      `, ["공유", "인사장", "회신", "엑셀"]);
+    }
+
+    function phoneShell(role, title, body, navItems) {
+      return `
+        <div class="phone-screen">
+          <div class="m-head">
+            <h3>${title}</h3>
+            <span>${role} 휴대폰 화면</span>
+          </div>
+          <div class="m-body">${body}</div>
+          <div class="m-nav">
+            ${navItems.map((item, index) => `<span class="${index === 0 ? "active" : ""}">${item}</span>`).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSpec() {
+      const meta = roleMeta[state.role];
+      const rows = meta.spec.map(row => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("");
+      document.getElementById("specTitle").textContent = `${meta.label} 화면 구성`;
+      document.getElementById("specTable").innerHTML = `
+        <table>
+          <thead><tr><th>구분</th><th>화면명</th><th>구성 내용</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function render() {
+      document.querySelectorAll(".role-tabs button").forEach(button => {
+        button.classList.toggle("active", button.dataset.role === state.role);
+      });
+      document.getElementById("roleBadge").textContent = `${roleMeta[state.role].label} 화면`;
+      document.getElementById("pcScreen").innerHTML = { member: memberPc, admin: adminPc, factory: factoryPc }[state.role]();
+      document.getElementById("mobileScreen").innerHTML = { member: memberMobile, admin: adminMobile, factory: factoryMobile }[state.role]();
+      renderSpec();
+      bindDynamicButtons();
+    }
+
+    function csvValue(value) {
+      const text = String(value ?? "");
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function toCsv(headers, rows) {
+      const body = rows.map(row => headers.map(header => csvValue(row[header] ?? "")).join(","));
+      return "\ufeff" + headers.join(",") + "\n" + body.join("\n");
+    }
+
+    function downloadCsv(kind) {
+      const today = new Date().toISOString().slice(0, 10);
+      const sets = {
+        orders: {
+          name: `주문마스터_${today}.csv`,
+          headers: ["접수번호", "회원명", "주문구분", "매장", "연락처", "상태", "총수량", "인사장여부", "주문일자"],
+          rows: state.orders.map(order => ({
+            "접수번호": order.id, "회원명": order.member, "주문구분": order.type, "매장": order.branch,
+            "연락처": order.phone, "상태": order.status, "총수량": order.total, "인사장여부": order.greeting, "주문일자": order.date
+          }))
+        },
+        items: {
+          name: `상품상세_${today}.csv`,
+          headers: ["주문번호", "순번", "주문제품명", "주문수량", "주문요청사항", "인사장작업"],
+          rows: state.items.map(item => ({
+            "주문번호": item.id, "순번": item.no, "주문제품명": item.product, "주문수량": item.qty,
+            "주문요청사항": item.note, "인사장작업": item.greeting
+          }))
+        },
+        greetings: {
+          name: `인사장작업_${today}.csv`,
+          headers: ["작업번호", "작업유형", "연결주문번호", "소속이름", "연락처", "인사장번호", "인사장내용", "수량", "크기", "제품명", "받을곳", "납기일", "특이사항", "작업상태"],
+          rows: state.greetings.map(row => ({
+            "작업번호": row.id, "작업유형": row.type, "연결주문번호": row.orderId, "소속이름": row.name, "연락처": row.phone,
+            "인사장번호": row.no, "인사장내용": row.content, "수량": row.qty, "크기": row.size, "제품명": row.product,
+            "받을곳": row.destination, "납기일": row.due, "특이사항": row.note, "작업상태": row.status
+          }))
+        },
+        factory: {
+          name: `공장자료_${today}.csv`,
+          headers: ["자료구분", "접수번호", "상품명", "수량", "인사장번호", "인사장내용", "크기", "받을곳", "납기일", "공장메모"],
+          rows: [
+            ...state.items.map(item => ({
+              "자료구분": "제품주문", "접수번호": item.id, "상품명": item.product, "수량": item.qty,
+              "인사장번호": item.greeting, "인사장내용": "", "크기": "", "받을곳": "", "납기일": "", "공장메모": item.note
+            })),
+            ...state.greetings.map(row => ({
+              "자료구분": "인사장", "접수번호": row.id, "상품명": row.product, "수량": row.qty,
+              "인사장번호": row.no, "인사장내용": row.content, "크기": row.size, "받을곳": row.destination, "납기일": row.due, "공장메모": row.note
+            }))
+          ]
+        },
+        template: {
+          name: `주문_인사장_업로드양식_${today}.csv`,
+          headers: ["접수유형", "회원명", "연락처", "주문구분", "상품명", "상품수량", "인사장번호", "인사장내용", "인사장수량", "크기", "받을곳", "납기일", "특이사항"],
+          rows: [
+            { "접수유형": "제품주문+인사장", "회원명": "이순희", "연락처": "010-1234-5678", "주문구분": "택배", "상품명": "명진 1호", "상품수량": 300, "인사장번호": "1", "인사장내용": "신앙촌 새마을금고 본점", "인사장수량": 300, "크기": "8칸", "받을곳": "중부", "납기일": "2026-01-16", "특이사항": "제품 안에 넣고 스티커 인사장 붙이기" }
+          ]
+        }
+      };
+      const data = sets[kind] || sets.orders;
+      const csv = toCsv(data.headers, data.rows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = data.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      document.getElementById("uploadStatus").textContent = `${data.name} 다운로드 완료`;
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let current = "";
+      let row = [];
+      let quoted = false;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (char === '"' && quoted && next === '"') {
+          current += '"';
+          i += 1;
+        } else if (char === '"') {
+          quoted = !quoted;
+        } else if (char === "," && !quoted) {
+          row.push(current);
+          current = "";
+        } else if ((char === "\n" || char === "\r") && !quoted) {
+          if (char === "\r" && next === "\n") i += 1;
+          row.push(current);
+          if (row.some(cell => cell.trim() !== "")) rows.push(row);
+          row = [];
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      row.push(current);
+      if (row.some(cell => cell.trim() !== "")) rows.push(row);
+      return rows;
+    }
+
+    function showCsvPreview(rows, fileName) {
+      if (!rows.length) {
+        document.getElementById("uploadPreview").innerHTML = `<div class="empty">${fileName} 파일에 표시할 행이 없습니다.</div>`;
+        return;
+      }
+      const previewRows = rows.slice(0, 10);
+      const maxCols = Math.max(...previewRows.map(row => row.length));
+      const htmlRows = previewRows.map((row, rowIndex) => `
+        <tr>
+          ${Array.from({ length: maxCols }).map((_, index) => rowIndex === 0
+            ? `<th>${row[index] || ""}</th>`
+            : `<td>${row[index] || ""}</td>`).join("")}
+        </tr>
+      `).join("");
+      document.getElementById("uploadPreview").innerHTML = `<div class="upload-preview"><table>${htmlRows}</table></div>`;
+    }
+
+    function handleUpload(file) {
+      if (!file) return;
+      const lower = file.name.toLowerCase();
+      const status = document.getElementById("uploadStatus");
+      if (lower.endsWith(".csv")) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const rows = parseCsv(String(reader.result || ""));
+          status.textContent = `${file.name} 업로드 완료, ${Math.max(rows.length - 1, 0)}건 미리보기`;
+          showCsvPreview(rows, file.name);
+        };
+        reader.readAsText(file, "utf-8");
+      } else {
+        status.textContent = `${file.name} 접수 완료, 실제 앱에서는 서버에서 XLS/XLSX를 주문/인사장 데이터로 변환`;
+        document.getElementById("uploadPreview").innerHTML = `
+          <div class="empty">
+            ${file.name}<br>
+            파일 크기: ${Math.round(file.size / 1024)} KB<br>
+            개발 구현 시 제품주문, 상품상세, 인사장 작업, 공장자료로 분리 검증합니다.
+          </div>
+        `;
+      }
+    }
+
+    function bindDynamicButtons() {
+      document.querySelectorAll("[data-download]").forEach(button => {
+        button.onclick = () => downloadCsv(button.dataset.download);
+      });
+      document.querySelectorAll("[data-upload-trigger]").forEach(button => {
+        button.onclick = () => document.getElementById("fileInput").click();
+      });
+    }
+
+    document.querySelectorAll(".role-tabs button").forEach(button => {
+      button.addEventListener("click", () => {
+        state.role = button.dataset.role;
+        render();
+      });
+    });
+
+    document.getElementById("uploadButton").addEventListener("click", () => {
+      document.getElementById("fileInput").click();
+    });
+
+    document.getElementById("fileInput").addEventListener("change", event => {
+      handleUpload(event.target.files[0]);
+      event.target.value = "";
+    });
+
+    render();
+  </script>
+</body>
+</html>

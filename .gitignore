@@ -44,5 +44,3 @@ next-env.d.ts
 storybook-static
 
 /src/generated/prisma
-주문.html
-README.md
